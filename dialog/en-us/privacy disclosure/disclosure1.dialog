@@ -1,0 +1,1 @@
+Mycroft will listen for when you say “Hey, Mocha” but will not record until this is detected. Your voice will then be recorded for a maximum of 10 seconds and it is processed to provide the right response. Your voice will be deleted immediately afterwards and will not be used for any other purpose.
