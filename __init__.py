@@ -515,7 +515,6 @@ class PrivacyAssistant(MycroftSkill):
             self.set_context('WWWReadingDoneContext', '')
 
     #@intent_handler(IntentBuilder('Start WWW Tutoring').require('done').require('WWWReadingDoneContext'))
-    @intent_handler(IntentBuilder('Start Demo').require('unique'))
     def handle_www_tutoring(self, message):
         self.remove_context('WWWReadingDoneContext')  # remove context to stop subsequent triggering for this handler with keywords in `done.voc`
         self.speak("Let's learn about how data flows on each device!")
@@ -630,8 +629,6 @@ class PrivacyAssistant(MycroftSkill):
 
                 sleep(2)
                 self.speak_dialog('congradulate')
-
-                    
 
     def handle_event_constructor(self, event):
         return lambda msg: self.handle_event(msg,event)

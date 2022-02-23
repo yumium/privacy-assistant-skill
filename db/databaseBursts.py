@@ -5,7 +5,7 @@ CONFIG_PATH = IOTR_BASE + "/config/config.cfg"
 
 class dbManager():
     
-    def __init__(self, dbname=None, username=None, password=None, client_name=None): # client_name is the schema for the client
+    def __init__(self, dbname=None, username=None, password=None):
         CONFIG = configparser.ConfigParser()
         CONFIG.read(CONFIG_PATH)
 
@@ -15,11 +15,6 @@ class dbManager():
             username = CONFIG['postgresql']['username']
         if password is None:
             password = CONFIG['postgresql']['password']
-        
-        if client_name is None:
-            self.client_name = CONFIG['postgresql']['client_schema']    
-        else:
-            self.client_name = client_name
 
         try:
             sys.stdout.write("Connecting to database...")
@@ -79,40 +74,6 @@ class dbManager():
 
         return output
 
-    def register_device(self, device_name, device_manufacturer):
-        device_id = self.execute(
-            f"SELECT id FROM devices WHERE name = '{device_name}' AND manufacturer = '{device_manufacturer}'",
-            None,
-            all=False
-        )
-
-        if device_id is None:
-            print("Registration failed. Device not found in database.")
-            return
-
-        device_id = device_id[0] # The returned result from the query is a tuple of answers from each statement executed
-
-        self.execute(
-            f"INSERT INTO {self.client_name}.devices(id) VALUES ('{device_id}')",None
-        )
-
-        self.execute(
-            f'''
-                INSERT INTO {self.client_name}.device_data_collection_controls
-                SELECT DISTINCT P.device_id, P.purpose, C.control
-                FROM device_data_collection_purpose P NATURAL LEFT OUTER JOIN device_data_collection_controls C
-                WHERE device_id = '{device_id}'
-            ''',None
-        ) # natural join selects rows where controls are present and (device_id,purpose) in ..._purpose. It also adds (device_id,purpose) pairs in ..._purpose but not found in ..._controls and set control to be null, which is exactly what we want. We need DISTINCT as the same (device_id,purpose) pair can exist across many data_sources.
-
-        self.execute(
-            f'''
-                INSERT INTO {self.client_name}.device_data_collection_urgent_controls
-                SELECT id
-                FROM device_data_collection_urgent_controls
-                WHERE device_id = '{device_id}'
-            ''',None
-        )
     
     def closeConnection(self):
         self.connection.close()
