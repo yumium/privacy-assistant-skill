@@ -2,73 +2,20 @@ from mycroft import MycroftSkill, intent_file_handler, intent_handler
 from adapt.intent import IntentBuilder
 from time import sleep
 from mycroft.util.parse import match_one
-from pywebio.output import *
 from pyecharts import options as opts
 from pyecharts.charts import Graph
-
-class SimpleGUI:
-    def __init__(self):
-        self.states = ['stand_by','recording','thinking','speaking']
-        self.current_state = 'stand_by'
-        self._update_text('Stand by')
-
-    # @use_scope('main', clear=True)
-    def display(self, event):
-        clear()
-
-        if event == 'recognizer_loop:wakeword':
-            put_text('Wake word recognized!')
-        elif event == 'recognizer_loop:record_begin':
-            put_text('Recording starts')
-        elif event == 'recognizer_loop:record_end':
-            put_text('Recording ends')
-        elif event == 'recognizer_loop:audio_output_start':
-            put_text('Speaking starts')
-        elif event == 'recognizer_loop:audio_output_end':
-            put_text('Speaking ends')
-        elif event == 'recognizer_loop:sleep':
-            put_text('Sleeping zzz')
-        elif event == 'recognizer_loop:wake_up':
-            put_text('Woke up!')
-
-    def advance(self, event):
-        if event == 'recognizer_loop:wakeword':
-            return
-
-        if self.current_state == 'stand_by' and event == 'recognizer_loop:record_begin':
-            self._set_state('recording')
-            self._update_text('Recording')
-        elif self.current_state == 'stand_by' and event == 'recognizer_loop:audio_output_start':
-            self._set_state('speaking')
-            self._update_text('Speaking')
-        elif self.current_state == 'recording' and event == 'recognizer_loop:record_end':
-            self._set_state('thinking')
-            self._update_text('Thinking')
-        elif self.current_state == 'thinking' and event == 'recognizer_loop:audio_output_start':
-            self._set_state('speaking')
-            self._update_text('Speaking')
-        elif self.current_state == 'speaking' and event == 'recognizer_loop:audio_output_end':
-            self._set_state('stand_by')
-            self._update_text('Stand by')
-        else:
-            print(f"Unknown pattern: handling event {event} at state {self.current_state}")
-
-    def _set_state(self, new_state):
-        assert new_state in self.states
-        self.current_state = new_state
-
-    @use_scope(name='main',clear=True)
-    def _update_text(self, txt):
-        #clear()
-        put_text(txt)
+from . import (gui)
+from .db import (databaseBursts)
 
 '''
 To do:
-- [ ] Display with graph
+- [x] Display with graph
 - [ ] Refining dialog sequence
+- [ ] Modularize this file --- currently all code is on one file 
+- [ ] Increase variety on dialog
 '''
 
-GUI = SimpleGUI()
+DB_MANAGER = databaseBursts.dbManager()
 
 DATABASE = {
     'Withings Smart Scale': [],
@@ -303,6 +250,188 @@ def generate_graph(device, protocol):
     
     return (c,selected_links) #!!
 
+
+## ----DATABASES FOR DATA COLLECTION---- ##
+class DataSourceInfo():
+    def __init__(self,example,purpose,urgent_controls):
+        self.example = example
+        self.purpose = purpose
+        self.urgent_controls = urgent_controls
+
+class UrgentControlInfo():
+    def __init__(self,description,control):
+        self.description = description
+        # Control of an empty string means no control is available
+        self.control = control
+
+'''
+    A database for different types of data collected by devices
+
+    Schema:
+    Device | Data Source | Example | Purpose | URGENT CONTROLS (data source . description . control)
+'''
+DATABASE_DEVICE = {
+    'Withings Smart Scale': {
+        'Account data': DataSourceInfo(
+            example="email address, birth date, name, phone number, and delivery address",
+            purpose=['Providing a service'],
+            urgent_controls=[]
+        ),
+
+        'Usage data': DataSourceInfo(
+            example="",
+            purpose=['Product feedback and improvement'],
+            urgent_controls=[]
+        ),
+
+        'Body data': DataSourceInfo(
+            example="weight, height, muscle, fat, and water percentage",
+            purpose=['Product feedback and improvement', 'Marketing'],
+            urgent_controls=[]
+        ),
+
+        'Third-party integration': DataSourceInfo(
+            example="MyFitnessPal, Google Fit, and Strava",
+            purpose=['Providing a service'],
+            urgent_controls=[]
+        ),
+
+        'Third-party service': DataSourceInfo(
+            example="",
+            purpose=['Providing a service'],
+            urgent_controls=[
+                UrgentControlInfo(
+                    description="Your shares your health data to their Research Hub to help medical research and improve everyone's health and wellness.",
+                    control="You can disable this, and it will not affect the functionality of the app."
+                )
+            ]
+        )
+    },
+
+    'Philips Hue Bulbs': {
+        'Account data': DataSourceInfo(
+            example="full name, email, password, country, and language",
+            purpose=['Providing a service'],
+            urgent_controls=[]
+        ),
+
+        'Usage data': DataSourceInfo(
+            example="device log",
+            purpose=['Providing a service', 'Product feedback and improvement', 'Personalisation', 'Marketing'],
+            urgent_controls=[
+                UrgentControlInfo(
+                    description="Your Philips Hue Bulbs collect your location data. They claim it is only used when strictly necessary and for functionalities, such as turning lights on and off based on time which needs location to know your time zone, or when you leave or come back from home. They claim your location data will stay in the Bridge.",
+                    control="You can switch off location but will lose functionality to the aforementioned features."
+                )
+            ]
+        ),
+
+        'Third-party integration': DataSourceInfo(
+            example="Alexa, Siri, and Google Home",
+            purpose=['Providing a service'],
+            urgent_controls=[]
+        )
+    },
+
+    'WeMo Switch and Motion': {
+        'Account data': DataSourceInfo(
+            example="username, email, and password",
+            purpose=['Providing a service'],
+            urgent_controls=[]
+        ),
+
+        'Usage data': DataSourceInfo(
+            example="IP, app setting, and login times",
+            purpose=['Product feedback and improvement'],
+            urgent_controls=[
+                UrgentControlInfo(
+                    description="Your WeMo Switch and Motion runs data inference on your device usage data to infer about your behaviour. They then use this data in advertising.",
+                    control=""
+                )
+            ]
+        ),
+
+        'Third-party service': DataSourceInfo(
+            example="user analytics service",
+            purpose=['Product feedback and improvement', 'Ad revenue'],
+            urgent_controls=[]
+        ),
+
+        'Third-party integration': DataSourceInfo(
+            example="Alexa, Google Home",
+            purpose=['Providing a service'],
+            urgent_controls=[]
+        )
+    }
+}
+ 
+'''
+    A database for controls available on devices
+
+    Schema:
+    Device | Purpose | Control
+
+    Semantics:
+    I have decided so that missing entries for purpose means either device isn't collecting data for tha purpose or it is but no controls are available
+'''
+DATABASE_CONTROL = {
+    'Withings Smart Scale': {
+        'Personalisation': "Disable customisation in app",
+        'Marketing': "Disable marketing from Hue or Friends of Hue in app",
+        'Third-party integration': "Disable third-party connection in app"
+    },
+
+    'Philips Hue Bulbs': {
+        'Marketing': "Disable in app on news and promotional offer",
+        'Product feedback and improvement': "Disable in app on sending data for product feedback",
+        'Third-party integration': "Disable in app for MyFitnessPal and other integrations",
+        'Third-party service': "Disable in app for Research Lab"
+    },
+
+    'WeMo Switch and Motion': {
+        'Marketing': "Unsubscribe from email",
+        'Third-party integration': "Disconnect from third parties in app"
+    }
+}
+
+'''
+    A database for data source information
+
+    Schema:
+    DATA SOURCE NAME | DATA SOURCE INFORMATION
+'''
+DATA_SOURCE = {
+    'Account data': "Your account data is the data you provide when registering for an account to use a particular product.",
+
+    'Usage data': "Usage data is data collected by logging how you interact with the device. Usage data is used for a variety number of purposes.",
+
+    'Body data': "Body data includes potentially sensitive data about your biometrics.",
+
+    'Third-party integration': "Third-party integration is about the data flow that happens between many smart home devices. For example, a smart TV can be integrated with Alexa so you can turn the TV on with your voice. Some data from the smart TV must be shared to Alexa to allow correct functionality, such as the available channels. But how Alexa (the third-party) uses that data is largely unknown, which can pose a privacy risk.",
+
+    'Third-party service': "A company may use services from a third-party to reduce the work they need to do themselves. For example, a company that manufactures smart doorbells might use a third-party service to manage their users' accounts. That way, they don't have to build the account management system themselves. The company would need to share necessary data (like users' names) for the third-party to function correctly. But how Alexa the third-party uses that data is largely unknown, which can pose a privacy risk."
+}
+
+'''
+    A database for collection purpose information
+
+    Schema:
+    PURPOSE NAME | PURPOSE INFORMATION
+'''
+PURPOSE = {
+    'Providing a service': "Data is needed to provide you the relevant service. For example, a bank cannot provide financial services for you if they don't have your bank details.",
+
+    'Personalisation': "Data is used to filter information that are the most relevant to you. For example, a meal planning app might use information about your dietary requirements and meal preferences to suggest personalised meal plans for you",
+
+    'Marketing': "Data is used to provide the most relevant marketing information about the company to you. For example, a bank may market mortgage plans to you if it knew you are in your late 20s --- the time most people consider buying a house",
+
+    'Product feedback and improvement': "Data is used to learn how you use the company's products and how you behave. This information is then used to improve the product and service.",
+
+    'Ad revenue': "Data is shared with third-party analytics providers to show personalised ads to you, and the company earns revenue based on that"
+}
+
+
+
 class PrivacyAssistant(MycroftSkill):
     def __init__(self):
         MycroftSkill.__init__(self)
@@ -367,7 +496,6 @@ class PrivacyAssistant(MycroftSkill):
 
             self.handle_www_intro(None)
 
-    @intent_handler(IntentBuilder('Start Demo').require('unique'))
     def handle_www_intro(self, message):
         '''
         self.speak_dialog('www.intro.1',wait=True)
@@ -378,52 +506,47 @@ class PrivacyAssistant(MycroftSkill):
         sleep(1)
         '''
 
-        understand = self.ask_yesno('Does this makes sense?')
-        num_tries = 1
-        MAX_TRIES = 5
-        while understand != 'yes' and understand != 'no' and num_tries < MAX_TRIES:
-            self.speak_dialog('confused')
-            understand = self.ask_yesno('Does what I said make sense to you?')
-            num_tries += 1
-
+        understand = self._ask_yesno_safe('Does this makes sense?')
         if understand == 'yes':
             self.handle_www_tutoring(None)
-
         elif understand == 'no':
             # Display more information
             self.speak_dialog('www.intro.more.info')
             self.set_context('WWWReadingDoneContext', '')
 
-    @intent_handler(IntentBuilder('Start WWW Tutoring').require('done').require('WWWReadingDoneContext'))
+    #@intent_handler(IntentBuilder('Start WWW Tutoring').require('done').require('WWWReadingDoneContext'))
+    @intent_handler(IntentBuilder('Start Demo').require('unique'))
     def handle_www_tutoring(self, message):
-        '''
-            DATABASE = {
-                'Withings Smart Scale': [],
-                'Philips Hue Bulbs': [],
-                'Philips Hue Bridge': [],
-                'WeMo Switch and Motion': []
-            }
-        '''
         self.remove_context('WWWReadingDoneContext')  # remove context to stop subsequent triggering for this handler with keywords in `done.voc`
         self.speak("Let's learn about how data flows on each device!")
+        devices = [d[0] for d in DB_MANAGER.execute('SELECT name FROM devices',None)]  # output is a list of tuples, each tuple representing one row
+        assert len(devices) > 0  # retrieval is successful
+        
         skipped = False
         while not skipped:
+            '''
             with use_scope(name='image', clear=True):
                 try:
                     put_html(generate_full_graph().render_notebook())
                 except:
                     put_text('Picture here')
+            '''
 
-            response = self._ask_device_selection(list(DATABASE.keys()), 'Which device would you like to learn next? Remember, you can say skip to skip this section')
-            while response is None:
-                self.speak_dialog('confused')
-                response = self._ask_device_selection(list(DATABASE.keys()), 'Which device would you like to learn next? Remember, you can say skip to skip this section')
-
+            response = self._ask_device_selection_safe(devices, 'Which device would you like to learn next? Remember, you can say skip to skip this section')
             if response == 'skip':
                 skipped = True
                 self.speak('Skipped')
             else:
-                for info in DATABASE[response]:  # Go through each protocol of the device
+                # Pre: each device in the devices table has a protocol entry associated with it
+                protocols = DB_MANAGER.execute(
+                    f'''
+                        SELECT E.protocol, E.purpose, E.example
+                        FROM devices D, device_data_flow_example E
+                        WHERE name = '{response}' AND D.id = E.device_id
+                    '''
+                ,None)
+                for p in protocols:  # Go through each protocol of the device
+                    '''
                     with use_scope(name='image',clear=True):
                         try:
                             self.log.error(f'Called graph API with ({response},{info.protocol})')
@@ -431,30 +554,106 @@ class PrivacyAssistant(MycroftSkill):
                             put_html(c.render_notebook())
                         except:
                             put_text('Picture here')
-                    self.speak(f"The {response} {self._decorate_protocol(info.protocol)} to {self._combine_list(info.purpose)}." + (f" For example, {info.example}" if info.example else ""),wait=True) 
+                    '''
+
+                    protocol, purpose, example = p
+                    self.speak(f"The {response} {self._decorate_protocol(protocol)} to {purpose}." + (f" For example, {example}" if example else ""),wait=True) 
                     sleep(5)
+
+    def handle_data_tutoring(self, data_source):
+        self.speak(f"Welcome back! Today we will talk about {data_source}.")
+
+        understand = self._ask_yesno_safe('Are you familiar with this concept?')
+        if understand != 'no':
+            self.log.error('Unsupported response')
+            return
+        
+        self.speak(DATA_SOURCE[data_source])
+        
+        understand = self._ask_yesno_safe('Do you need more information?')
+        if understand != 'no':
+            self.log.error('Unsupported response')
+            return
+
+        relevant_devices = [device for device in DATABASE_DEVICE.keys() if data_source in DATABASE_DEVICE[device].keys()]
+        # A dictionary that reverse maps each purpose to a list of devices that collects the `data_source` for that purpose
+        purposes = {}
+        for d in relevant_devices:
+            for p in DATABASE_DEVICE[d][data_source].purpose:
+                if p not in purposes:
+                    purposes[p] = [d]
+                else:
+                    purposes[p].append(d)
+        self.log.error(purposes)
+
+        for p in list(purposes.keys()):
+            self.handle_data_purpose(data_source, p, purposes[p])
+
+        self.speak("Great work! That is it for today, come back tomorrow to learn about the next data source. You can also say “continue” to start tomorrow's material right now")
+
+
+    def handle_data_purpose(self, data_source, purpose, relevant_devices):
+        first_device = True
+        for d in relevant_devices:
+            self.speak(f"Your {d} uses {data_source} for {purpose}.")
+
+            if first_device:
+                first_device = False
+
+                understand = self._ask_yesno_safe(f'Are you familiar with what {purpose} means?')
+                if understand != 'no':
+                    self.log.error('Unsupported response')
+                    return
+
+                self.speak(PURPOSE[purpose])
+
+                understand = self._ask_yesno_safe('Do you need more information?')
+                if understand != 'no':
+                    self.log.error('Unsupported response')
+                    return
+
+            # No need to repeat in full if purpose was not explained
+            concerned = self._ask_yesno_safe(f"Are you concerned about {d} collecting {data_source} for {purpose}?")
+            if concerned == 'yes':
+                self.speak("Okay.")
+
+                disable = self._ask_yesno_safe("Would you like me to disable that? This will not change the functionality.")
+                if disable != 'yes':
+                    self.log.error('Unsupported response')
+                    return
+
+                if purpose in DATABASE_CONTROL[d].keys():
+                    self.speak(f"I cannot do this automatically, but you can follow the instructions on screen to {DATABASE_CONTROL[d][purpose]}", wait=True)
+
+                else:
+                    self.speak("Okay. Unfortunately, there is no way to disable this. Under UK legislations, you have the right to limit how companies use your data. Would you like me to contact the firm for this feature?", wait=True)
+
+                sleep(2)
+                self.speak_dialog('congradulate')
+
+                    
 
     def handle_event_constructor(self, event):
         return lambda msg: self.handle_event(msg,event)
 
     def handle_event(self, message, event):
+        '''
         try:
             GUI.advance(event)
         except Exception as e:
             self.log.error(e.args)
             self.log.error('An error occured!')
+        '''
 
-
-    #@intent_handler(IntentBuilder('Start Demo').require('unique'))
+    # @intent_handler(IntentBuilder('Start Demo').require('unique'))
     def _test(self, message):
-        with use_scope(name='image',clear=True):
-            try:
-                c, links = generate_graph('Philips Hue Bridge', 'WiFi')
-                self.log.error(links)
-                put_html(c.render_notebook())
-            except:
-                put_text('Picture here')
-        self.speak('')
+        response = 'WeMo Switch and Motio'
+        query = f'''
+                    SELECT E.protocol, E.purpose, E.example
+                    FROM devices D, device_data_flow_example E
+                    WHERE name = '{response}' AND D.id = E.device_id
+                '''
+        self.log.error(DB_MANAGER.execute(query, None))
 
     def _ask_device_selection(self, options, dialog='Which one would you like?',
                       data=None, min_conf=0.65):
@@ -488,6 +687,21 @@ class PrivacyAssistant(MycroftSkill):
                 resp = match
         return resp
 
+    def _ask_device_selection_safe(self, devices, query, MAX_TRIES=5):
+        '''     
+            Queries devices but asks repeatedly until a valid response is registerd
+            Returns string of list element selected or None if fails to register a response within `MAX_TRIES` # of tries
+        '''
+        response = self._ask_device_selection(devices, query)
+        num_tries = 1
+        MAX_TRIES = 5
+        while response is None and num_tries < MAX_TRIES:
+            self.speak_dialog('confused')
+            response = self._ask_device_selection(devices, query)
+            num_tries += 1
+
+        return response
+
     def _combine_list(self,options):
         '''
         Pre: `options` is a non-empty list of strings
@@ -513,6 +727,23 @@ class PrivacyAssistant(MycroftSkill):
             return 'connects over LAN'
         else:
             raise ValueError
+
+    def _ask_yesno_safe(self,query,MAX_TRIES=5):
+        '''     
+            Queries yes/no but asks repeatedly until a yes/no response is successfully interpreted
+            Returns 'yes'/'no' or None if fails to register a response within `MAX_TRIES` # of tries
+        '''
+        response = self.ask_yesno(query)
+        num_tries = 1
+        MAX_TRIES = 5
+        while response != 'yes' and response != 'no' and num_tries < MAX_TRIES:
+            self.speak_dialog('confused')
+            response = self.ask_yesno(query)
+            num_tries += 1
+        
+        return response if response == 'yes' or response == 'no' else None
+
+
 
 def create_skill():
     return PrivacyAssistant()
