@@ -3,6 +3,10 @@ import psycopg2, psycopg2.extensions, select, threading, sys, configparser, os
 IOTR_BASE = os.path.split(os.path.dirname(os.path.abspath(__file__)))[0]
 CONFIG_PATH = IOTR_BASE + "/config/config.cfg"
 
+CONFIG = configparser.ConfigParser()
+CONFIG.read(CONFIG_PATH)
+CLIENT_NAME = CONFIG['postgresql']['client_schema']
+
 class dbManager():
     
     def __init__(self, dbname=None, username=None, password=None):

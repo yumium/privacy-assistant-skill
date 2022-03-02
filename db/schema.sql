@@ -135,6 +135,11 @@ CREATE TABLE client.devices (
 	id VARCHAR(20) PRIMARY KEY REFERENCES devices(id) ON DELETE CASCADE
 );
 
+CREATE TABLE client.purposes (
+	name VARCHAR(50) PRIMARY KEY REFERENCES purposes(name) ON DELETE CASCADE,
+	introduced BOOLEAN NOT NULL DEFAULT FALSE -- If the purpose has been introduced to the user before
+);
+
 CREATE TABLE client.device_data_collection_controls (
 	device_id VARCHAR(20) NOT NULL REFERENCES client.devices(id) ON DELETE CASCADE,
 	purpose VARCHAR(50) NOT NULL REFERENCES purposes(name) ON DELETE CASCADE,
