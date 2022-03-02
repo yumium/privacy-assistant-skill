@@ -5,14 +5,6 @@ from mycroft.util.parse import match_one
 from . import (gui)
 from .db import (databaseBursts)
 
-'''
-To do:
-- [x] Display with graph
-- [ ] Diversify dialog sequence + make it less robotic
-- [ ] Modularize this
-- [ ] Edge case correction (when Mocha gives up..)
-'''
-
 DB_MANAGER = databaseBursts.dbManager()
 CLIENT_NAME = databaseBursts.CLIENT_NAME
 
@@ -79,43 +71,40 @@ class PrivacyAssistant(MycroftSkill):
 
             OPT_IN = True
             query_dialog = 'opt.out.from.in' if OPT_IN else 'opt.in.from.out'
-            agree = self.ask_yesno(query_dialog)
-            num_tries = 1
-            MAX_TRIES = 5
-            while agree != 'yes' and agree != 'no' and num_tries < MAX_TRIES:
-                self.speak_dialog('confused')
-                agree = self.ask_yesno(query_dialog)
-                num_tries += 1
+            agree = self._ask_yesno_safe(query_dialog)
 
-            if agree == 'yes':
+            if agree is None:
+                self.speak_dialog('error')
+            elif agree == 'yes':
                 self.log.error('Yes!')
             elif agree == 'no':
                 self.log.error('No!')
 
-            self.handle_www_intro(None)
+            self.handle_internet_intro(None)
 
-    def handle_www_intro(self, message):
-        '''
-        self.speak_dialog('www.intro.1',wait=True)
+    def handle_internet_intro(self, message):
+        self.speak_dialog('internet.intro.1',wait=True)
         sleep(1)
-        self.speak_dialog('www.intro.2',wait=True)
+        self.speak_dialog('internet.intro.2',wait=True)
         sleep(1)
-        self.speak_dialog('www.intro.3',wait=True)
+        self.speak_dialog('internet.intro.3',wait=True)
         sleep(1)
-        '''
 
         understand = self._ask_yesno_safe('Does this makes sense?')
-        if understand == 'yes':
-            self.handle_www_tutoring(None)
+        if understand is None:
+            self.speak_dialog('error')
+            return
+        elif understand == 'yes':
+            self.handle_internet_tutoring(None)
         elif understand == 'no':
             # Display more information
             self.speak_dialog('more.info')
-            self.set_context('WWWReadingDoneContext')
+            self.set_context('InternetReadingDoneContext')
 
-    #@intent_handler(IntentBuilder('Start WWW Tutoring').require('done').require('WWWReadingDoneContext'))
-    def handle_www_tutoring(self, message):
-        self.remove_context('WWWReadingDoneContext')  # remove context to stop subsequent triggering for this handler with keywords in `done.voc`
-        self.speak("Let's learn about how data flows on each device!")
+    @intent_handler(IntentBuilder('Start Internet Tutoring').require('done').require('InternetReadingDoneContext'))
+    def handle_internet_tutoring(self, message):
+        self.remove_context('InternetReadingDoneContext')  # remove context to stop subsequent triggering for this handler with keywords in `done.voc`
+        self.speak_dialog('internet.intro.intro')
         devices = [d[0] for d in DB_MANAGER.execute('SELECT name FROM devices',None)]  # output is a list of tuples, each tuple representing one row
         assert len(devices) > 0  # retrieval is successful
         
@@ -129,10 +118,10 @@ class PrivacyAssistant(MycroftSkill):
                     put_text('Picture here')
             '''
 
-            response = self._ask_device_selection_safe(devices, 'Which device would you like to learn next? Remember, you can say skip to skip this section')
+            response = self._ask_device_selection_safe(devices, 'query.internet.device')
             if response == 'skip':
                 skipped = True
-                self.speak('Skipped')
+                self.speak_dialog('Skipped')
             else:
                 # Pre: each device in the devices table has a protocol entry associated with it
                 protocols = DB_MANAGER.execute(
@@ -161,16 +150,16 @@ class PrivacyAssistant(MycroftSkill):
     def handle_data_tutoring_data_source_intro(self, data_source):
         self.speak(f"Welcome back! Today we will talk about {data_source}.")
 
-        understand = self._ask_yesno_safe('Are you familiar with this concept?')
+        understand = self._ask_yesno_safe('familiar')
         if understand is None:
-            self.speak("Sorry, I don't understand. Please try again later.")
+            self.speak_dialog('error')
             return
         elif understand == 'no':
             self.speak(DB_MANAGER.execute(f"SELECT information FROM data_source WHERE name = '{data_source}'",None)[0][0], wait=True)
             sleep(1)
-            more_info = self._ask_yesno_safe('Do you need more information?')
+            more_info = self._ask_yesno_safe('query.more.information')
             if more_info is None:
-                self.speak("Sorry, I don't understand. Please try again later.")
+                self.speak_dialog('error')
                 return
             elif more_info == 'yes':
                 self.speak_dialog('more.info')
@@ -233,28 +222,28 @@ class PrivacyAssistant(MycroftSkill):
             self.handle_urgent_control(*urgents.pop())
 
     def handle_urgent_control(self, urgent_id, device_name, data_source, description, control):
-        self.speak("Here's something I'm a little worried about.")
+        self.speak_dialog('urgent.worried')
         self.speak(description)
 
         response = None
         if control is None:
-            self.speak("Unfortunately, there is no way to disable this. Under UK legislations, you have the right to limit how companies use your data.")
-            response = self._ask_yesno_safe("Would you like me to contact the firm about this?")
+            self.speak('no.control')
+            response = self._ask_yesno_safe('query.firm.for.control')
         else:
             self.speak(control)
-            response = self._ask_yesno_safe("Would you like to disable this?")
+            response = self._ask_yesno_safe('query.diable')
         
         if response is None:
-            self.speak("Sorry, I don't understand. Please try at a later time.",wait=True)
+            self.speak_dialog('error',wait=True)
         elif response == 'yes':
             if control is None:
-                self.speak("Done",wait=True)
+                self.speak_dialog('done',wait=True)
             else:
-                self.speak("Please follow the onscreen instructions. When you are done, say 'Hey Mocha, done'",wait=True)
+                self.speak_dialog('onscreen.instructions',wait=True)
                 self.set_context('NextUrgentControlContext','')
                 return
         else:
-            self.speak("Okay",wait=True)
+            self.speak('acknowledge',wait=True)
         sleep(2)
         self.handle_next_urgent_control(data_source)
 
@@ -264,7 +253,7 @@ class PrivacyAssistant(MycroftSkill):
         if purpose_introduced:
             remember = self._ask_yesno_safe(f'Do you remember what {purpose} means?')
             if remember is None:
-                self.speak("Sorry, I don't understand. Please try again later")
+                self.speak_dialog('error')
                 return
             elif remember == 'no':
                 self.speak(DB_MANAGER.execute(f"SELECT information FROM purposes WHERE name = '{purpose}'",None)[0][0])
@@ -274,14 +263,14 @@ class PrivacyAssistant(MycroftSkill):
             DB_MANAGER.execute(f"UPDATE {CLIENT_NAME}.purposes SET introduced = TRUE WHERE name = '{purpose}'", None)  # Set purpose to be introduced
             familiar = self._ask_yesno_safe(f'Are you familiar with what {purpose} means?')
             if familiar is None:
-                self.speak("Sorry, I don't understand. Please try again later")
+                self.speak('error')
                 return
             elif familiar == 'no':
                 self.speak(DB_MANAGER.execute(f"SELECT information FROM purposes WHERE name = '{purpose}'",None)[0][0])
                 sleep(1)
                 more_info = self._ask_yesno_safe('Do you need more information?')
                 if more_info is None:
-                    self.speak("Sorry, I don't understand. Please try again later.")
+                    self.speak_dialog('error')
                     return
                 elif more_info == 'yes':
                     self.speak_dialog('more.info')
@@ -298,9 +287,9 @@ class PrivacyAssistant(MycroftSkill):
     def handle_data_purpose(self,messge):
         self.remove_context('PurposeContinueContext')
 
-        data_source = self._get_locvar('DataSourceContext'); self.log.error(data_source)
-        purpose = self._get_locvar('PurposeContext'); self.log.error(purpose)
-        relevant_devices = self._get_locvar('RelevantDevicesContext'); self.log.error(relevant_devices)
+        data_source = self._get_locvar('DataSourceContext')
+        purpose = self._get_locvar('PurposeContext')
+        relevant_devices = self._get_locvar('RelevantDevicesContext')
 
         self._remove_locvars('DataSourceContext', 'PurposeContext', 'RelevantDevicesContext')
         self.handle_data_purpose2(data_source, purpose, relevant_devices)
@@ -311,14 +300,14 @@ class PrivacyAssistant(MycroftSkill):
             # No need to repeat in full if purpose was not explained
             concerned = self._ask_yesno_safe(f"Are you concerned about {d} collecting {data_source} for {purpose}?")
             if concerned is None:
-                self.speak("Sorry, I don't understand. Please try again later.")
+                self.speak_dialog('error')
                 return
             elif concerned == 'yes':
-                self.speak("Okay.")
+                self.speak_dialog('acknowledge')
 
                 disable = self._ask_yesno_safe("Would you like me to disable that? This will not change the functionality.")
                 if disable is None:
-                    self.speak("Sorry, I don't understand. Please try again later.")
+                    self.speak_dialog('error')
                     return
                 elif disable == 'yes':
                     DB_MANAGER.execute(  # Set `taken` for this action to be TRUE
@@ -344,20 +333,20 @@ class PrivacyAssistant(MycroftSkill):
                         self.set_context('SettingsContext')
                         return
                     else:
-                        self.speak("Okay. Unfortunately, there is no way to disable this. Under UK legislations, you have the right to limit how companies use your data.")
+                        self.speak_dialog('no.control')
                         contact = self._ask_yesno_safe('Would you like me to contact the firm for this feature?')
                         if contact is None:
-                            self.speak("Sorry, I don't understand. Please try again later.")
+                            self.speak_dialog('error')
                             return
                         elif contact == 'yes':
-                            self.speak("Okay, that's done.")
+                            self.speak_dialog('done')
                             self.speak_dialog('congradulate')
                         else:
-                            self.speak("Okay.")
+                            self.speak_dialog('acknowledge')
                 else:
-                    self.speak("Okay.")
+                    self.speak_dialog('acknowledge')
             else:
-                self.speak("Okay.")
+                self.speak_dialog('acknowledge')
 
         # The (data_source, purpose) pair is finished
         purpose_list = self._get_locvar('PurposeList')
@@ -401,6 +390,7 @@ class PrivacyAssistant(MycroftSkill):
     def _ask_device_selection(self, options, dialog='Which one would you like?',
                       data=None, min_conf=0.65):
         '''
+        A modification of the `ask_selection` function in the mycroft package.
         Read options, ask dialog question and wait for an answer. Adds 'skip' to the list of options (if the list is non-empty)
 
         This automatically deals with fuzzy matching (the match_one util is imported from mycroft, which is in turn imported from Lingua Franca)
@@ -432,8 +422,14 @@ class PrivacyAssistant(MycroftSkill):
 
     def _ask_device_selection_safe(self, devices, query, MAX_TRIES=5):
         '''     
-            Queries devices but asks repeatedly until a valid response is registerd
-            Returns string of list element selected or None if fails to register a response within `MAX_TRIES` # of tries
+            Queries devices but asks repeatedly until a valid response is registerd or `MAX_TRIES` reached
+
+            Args:
+              devices (list): list of devices to choose
+              query (str): a dialog ID or string to read
+
+            Returns:
+              string: list element selected or None if fails to register a response within `MAX_TRIES` # of tries
         '''
         response = self._ask_device_selection(devices, query)
         num_tries = 1
