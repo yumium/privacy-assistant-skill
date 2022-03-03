@@ -54,6 +54,7 @@ CREATE TABLE device_data_flow_example (
 	protocol VARCHAR(50) NOT NULL REFERENCES protocols(name) ON DELETE CASCADE,
 	example TEXT,
 	purpose TEXT NOT NULL,
+	connects_to_internet BOOLEAN NOT NULL DEFAULT TRUE,
 
 	PRIMARY KEY (device_id, protocol)
 );
@@ -66,7 +67,12 @@ CREATE TABLE device_data_flow_edges (
 	protocol VARCHAR(50) NOT NULL REFERENCES protocols(name) ON DELETE CASCADE,
 	source VARCHAR(50) NOT NULL REFERENCES entities(name) ON DELETE CASCADE,
 	target VARCHAR(50) NOT NULL REFERENCES entities(name) ON DELETE CASCADE,
-	edge_protocol VARCHAR(50) NOT NULL REFERENCES protocols(name) ON DELETE CASCADE  -- We might include relevant edges that run a different protocol, but forms part of a system that uses the protocol
+	edge_protocol VARCHAR(50) NOT NULL REFERENCES protocols(name) ON DELETE CASCADE,  -- We might include relevant edges that run a different protocol, but forms part of a system that uses the protocol
+
+	PRIMARY KEY (device_id, protocol, source, target),  -- No duplicated edges given a (device_id, protocol) pair
+	Constraint edge_chk Check(  -- We make canonical that edges have the smaller node (lexicographically) as source, as edges are undirected
+		source <= target
+	)
 );
 
 

@@ -1,3 +1,4 @@
+from xml.dom.expatbuilder import parseString
 from pywebio.output import *
 
 class SimpleGUI:
@@ -28,10 +29,29 @@ class SimpleGUI:
         else:
             print(f"Unknown pattern: handling event {event} at state {self.current_state}")
 
+    # Displays the graph generated from pyecharts
+    @use_scope(name='graph', clear=True)
+    def put_graph(self, c):
+        put_html(c.render_notebook())
+        pass
+
     def _set_state(self, new_state):
         assert new_state in self.states
         self.current_state = new_state
 
     @use_scope(name='main',clear=True)
     def _update_text(self, txt):
-        put_text(txt)
+        #put_text(txt).style('color: red')
+        put_html(
+            f'''
+                <div style="
+                    height: 40px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    background-image: linear-gradient(180deg, #fff, #ddd 40%, #ccc)
+                ">
+                    <p>{txt}</p>
+                </div>
+            '''
+        )

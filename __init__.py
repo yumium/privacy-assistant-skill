@@ -1,12 +1,14 @@
+from pickle import NONE
 from mycroft import MycroftSkill, intent_file_handler, intent_handler
 from adapt.intent import IntentBuilder
 from time import sleep
 from mycroft.util.parse import match_one
-from . import (gui)
+from . import (gui, graph)
 from .db import (databaseBursts)
 
 DB_MANAGER = databaseBursts.dbManager()
 CLIENT_NAME = databaseBursts.CLIENT_NAME
+GUI = gui.SimpleGUI()
 
 class PrivacyAssistant(MycroftSkill):
     def __init__(self):
@@ -90,7 +92,7 @@ class PrivacyAssistant(MycroftSkill):
         self.speak_dialog('internet.intro.3',wait=True)
         sleep(1)
 
-        understand = self._ask_yesno_safe('Does this makes sense?')
+        understand = self._ask_yesno_safe('query.make.sense')
         if understand is None:
             self.speak_dialog('error')
             return
@@ -110,13 +112,7 @@ class PrivacyAssistant(MycroftSkill):
         
         skipped = False
         while not skipped:
-            '''
-            with use_scope(name='image', clear=True):
-                try:
-                    put_html(generate_full_graph().render_notebook())
-                except:
-                    put_text('Picture here')
-            '''
+            GUI.put_graph(graph.generate_full_graph())
 
             response = self._ask_device_selection_safe(devices, 'query.internet.device')
             if response == 'skip':
@@ -132,20 +128,10 @@ class PrivacyAssistant(MycroftSkill):
                     '''
                 ,None)
                 for p in protocols:  # Go through each protocol of the device
-                    '''
-                    with use_scope(name='image',clear=True):
-                        try:
-                            self.log.error(f'Called graph API with ({response},{info.protocol})')
-                            c, links = generate_graph(response, info.protocol)
-                            put_html(c.render_notebook())
-                        except:
-                            put_text('Picture here')
-                    '''
-
                     protocol, purpose, example = p
+                    GUI.put_graph(graph.generate_graph(response, protocol))
                     self.speak(f"The {response} {self._decorate_protocol(protocol)} to {purpose}." + (f" For example, {example}" if example else ""),wait=True) 
                     sleep(5)
-
 
     def handle_data_tutoring_data_source_intro(self, data_source):
         self.speak(f"Welcome back! Today we will talk about {data_source}.")
@@ -251,7 +237,7 @@ class PrivacyAssistant(MycroftSkill):
         purpose_introduced = DB_MANAGER.execute(f"SELECT introduced FROM {CLIENT_NAME}.purposes WHERE name = '{purpose}'", None)[0][0]
         self.speak(f"Your device uses {data_source} for {purpose}.")  
         if purpose_introduced:
-            remember = self._ask_yesno_safe(f'Do you remember what {purpose} means?')
+            remember = self._ask_yesno_safe('query.purpose.remember', {'purpose': purpose})
             if remember is None:
                 self.speak_dialog('error')
                 return
@@ -261,14 +247,14 @@ class PrivacyAssistant(MycroftSkill):
             self.handle_data_purpose2(data_source, purpose, relevant_devices)
         else:
             DB_MANAGER.execute(f"UPDATE {CLIENT_NAME}.purposes SET introduced = TRUE WHERE name = '{purpose}'", None)  # Set purpose to be introduced
-            familiar = self._ask_yesno_safe(f'Are you familiar with what {purpose} means?')
+            familiar = self._ask_yesno_safe('query.purpose.familiar', {'purpose': purpose})
             if familiar is None:
                 self.speak('error')
                 return
             elif familiar == 'no':
                 self.speak(DB_MANAGER.execute(f"SELECT information FROM purposes WHERE name = '{purpose}'",None)[0][0])
                 sleep(1)
-                more_info = self._ask_yesno_safe('Do you need more information?')
+                more_info = self._ask_yesno_safe('query.more.info')
                 if more_info is None:
                     self.speak_dialog('error')
                     return
@@ -298,14 +284,14 @@ class PrivacyAssistant(MycroftSkill):
     def handle_data_purpose2(self, data_source, purpose, relevant_devices):
         for d in relevant_devices:
             # No need to repeat in full if purpose was not explained
-            concerned = self._ask_yesno_safe(f"Are you concerned about {d} collecting {data_source} for {purpose}?")
+            concerned = self._ask_yesno_safe('query.concern.dialog',{'device': d, 'data_source': data_source, 'purpose': purpose})
             if concerned is None:
                 self.speak_dialog('error')
                 return
             elif concerned == 'yes':
                 self.speak_dialog('acknowledge')
 
-                disable = self._ask_yesno_safe("Would you like me to disable that? This will not change the functionality.")
+                disable = self._ask_yesno_safe('query.disable.no.consequence')
                 if disable is None:
                     self.speak_dialog('error')
                     return
@@ -326,7 +312,7 @@ class PrivacyAssistant(MycroftSkill):
                     ,None)
 
                     if len(control) > 0:
-                        self.speak(f"I cannot do this automatically, but you can follow the instructions on screen to {control[0][0]}. Let me know when you are done.")
+                        self.speak('manual.control', {'control_info': control[0][0]})
                         self._set_locvar('DataSourceContext', data_source)
                         self._set_locvar('PurposeContext', purpose)
                         self._set_locvar('RelevantDevicesContext', relevant_devices[relevant_devices.index(d):])
@@ -334,7 +320,7 @@ class PrivacyAssistant(MycroftSkill):
                         return
                     else:
                         self.speak_dialog('no.control')
-                        contact = self._ask_yesno_safe('Would you like me to contact the firm for this feature?')
+                        contact = self._ask_yesno_safe('query.contact.firm')
                         if contact is None:
                             self.speak_dialog('error')
                             return
@@ -372,20 +358,17 @@ class PrivacyAssistant(MycroftSkill):
         return lambda msg: self.handle_event(msg,event)
 
     def handle_event(self, message, event):
-        '''
         try:
             GUI.advance(event)
         except Exception as e:
             self.log.error(e.args)
             self.log.error('An error occured!')
-        '''
 
     @intent_handler(IntentBuilder('Start Demo').require('unique'))
     def _test(self, message):
-        # self.handle_data_tutoring_data_source_intro('Account data')
-        # self.handle_data_purpose_intro('Account data', 'Marketing', ['Withings Smart Scale', 'Philips Hue Bulbs', 'WeMo Switch and Motion'])
-        data_source = 'usage data'
-        self.handle_data_tutoring_purpose_intro2(data_source)
+        #GUI.put_graph(graph.generate_graph_postgres('Philips Hue Bulb', 'ZigBee'))
+        #self.speak('okay')
+        self.handle_internet_tutoring(None)
 
     def _ask_device_selection(self, options, dialog='Which one would you like?',
                       data=None, min_conf=0.65):
@@ -467,17 +450,21 @@ class PrivacyAssistant(MycroftSkill):
         else:
             raise ValueError
 
-    def _ask_yesno_safe(self,query,MAX_TRIES=5):
+    def _ask_yesno_safe(self, query, data=None, MAX_TRIES=5):
         '''     
-            Queries yes/no but asks repeatedly until a yes/no response is successfully interpreted
-            Returns 'yes'/'no' or None if fails to register a response within `MAX_TRIES` # of tries
+            Queries yes/no but asks repeatedly until a yes/no response is successfully interpreted or `MAX_TRIES` reached
+
+            Args:
+                query (string): a dialog id or string to read
+            Returns 
+                'yes'/'no' or None if fails to register a response within `MAX_TRIES` # of tries
         '''
-        response = self.ask_yesno(query)
+        response = self.ask_yesno(query, data)
         num_tries = 1
         MAX_TRIES = 5
         while response != 'yes' and response != 'no' and num_tries < MAX_TRIES:
             self.speak_dialog('confused')
-            response = self.ask_yesno(query)
+            response = self.ask_yesno(query, data)
             num_tries += 1
         
         return response if response == 'yes' or response == 'no' else None

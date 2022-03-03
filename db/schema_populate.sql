@@ -167,11 +167,12 @@ INSERT INTO device_data_flow_example (device_id, protocol, purpose)
 		'connect to Belkin servers to receive automations and commands from the phone'
 	);
 
-INSERT INTO device_data_flow_example (device_id, protocol, purpose)
+INSERT INTO device_data_flow_example (device_id, protocol, purpose, connects_to_internet)
 	VALUES (
 		'BEL-WEMOSW-7571896',
 		'LAN',
-		'receive automations and commands from the phone'
+		'receive automations and commands from the phone',
+		FALSE
 	);
 
 
@@ -184,8 +185,8 @@ INSERT INTO device_data_flow_edges (device_id, protocol, source, target, edge_pr
 	VALUES (
 		'WIT-BODYCA-98299053',
 		'WiFi',
-		'Withings Body Cardio',
 		'Mocha',
+		'Withings Body Cardio',
 		'WiFi'
 	);
 
@@ -193,8 +194,8 @@ INSERT INTO device_data_flow_edges (device_id, protocol, source, target, edge_pr
 	VALUES (
 		'WIT-BODYCA-98299053',
 		'WiFi',
-		'Phone',
 		'Mocha',
+		'Phone',
 		'WiFi'
 	);	
 
@@ -203,8 +204,8 @@ INSERT INTO device_data_flow_edges (device_id, protocol, source, target, edge_pr
 	VALUES (
 		'PHI-HUEBUL-296608048',
 		'ZigBee',
-		'Philips Hue Bulb',
 		'Philips Hue Bridge',
+		'Philips Hue Bulb',
 		'ZigBee'
 	);	
 
@@ -212,8 +213,8 @@ INSERT INTO device_data_flow_edges (device_id, protocol, source, target, edge_pr
 	VALUES (
 		'PHI-HUEBUL-296608048',
 		'ZigBee',
-		'Philips Hue Bridge',
 		'Mocha',
+		'Philips Hue Bridge',
 		'WiFi'
 	);	
 
@@ -221,8 +222,8 @@ INSERT INTO device_data_flow_edges (device_id, protocol, source, target, edge_pr
 	VALUES (
 		'PHI-HUEBUL-296608048',
 		'ZigBee',
-		'Phone',
 		'Mocha',
+		'Phone',
 		'WiFi'
 	);	
 
@@ -231,8 +232,8 @@ INSERT INTO device_data_flow_edges (device_id, protocol, source, target, edge_pr
 	VALUES (
 		'PHI-HUEBUL-258280268',
 		'WiFi',
+		'Mocha',
 		'Philips Hue Bridge',
-		'Mocha',
 		'WiFi'
 	);	
 
@@ -240,8 +241,8 @@ INSERT INTO device_data_flow_edges (device_id, protocol, source, target, edge_pr
 	VALUES (
 		'PHI-HUEBUL-258280268',
 		'WiFi',
-		'Phone',
 		'Mocha',
+		'Phone',
 		'WiFi'
 	);	
 
@@ -250,8 +251,8 @@ INSERT INTO device_data_flow_edges (device_id, protocol, source, target, edge_pr
 	VALUES (
 		'BEL-WEMOSW-7571896',
 		'WiFi',
+		'Mocha',
 		'WeMo Switch',
-		'Mocha',
 		'WiFi'
 	);	
 
@@ -259,8 +260,8 @@ INSERT INTO device_data_flow_edges (device_id, protocol, source, target, edge_pr
 	VALUES (
 		'BEL-WEMOSW-7571896',
 		'WiFi',
+		'Mocha',
 		'WeMo Motion',
-		'Mocha',
 		'WiFi'
 	);	
 
@@ -268,8 +269,8 @@ INSERT INTO device_data_flow_edges (device_id, protocol, source, target, edge_pr
 	VALUES (
 		'BEL-WEMOSW-7571896',
 		'WiFi',
-		'Phone',
 		'Mocha',
+		'Phone',
 		'WiFi'
 	);	
 
@@ -278,8 +279,8 @@ INSERT INTO device_data_flow_edges (device_id, protocol, source, target, edge_pr
 	VALUES (
 		'BEL-WEMOSW-7571896',
 		'LAN',
-		'WeMo Switch',
 		'Mocha',
+		'WeMo Switch',
 		'LAN'
 	);	
 
@@ -287,8 +288,8 @@ INSERT INTO device_data_flow_edges (device_id, protocol, source, target, edge_pr
 	VALUES (
 		'BEL-WEMOSW-7571896',
 		'LAN',
-		'WeMo Motion',
 		'Mocha',
+		'WeMo Motion',
 		'LAN'
 	);	
 
@@ -296,8 +297,8 @@ INSERT INTO device_data_flow_edges (device_id, protocol, source, target, edge_pr
 	VALUES (
 		'BEL-WEMOSW-7571896',
 		'LAN',
-		'Phone',
 		'Mocha',
+		'Phone',
 		'LAN'
 	);	
 
