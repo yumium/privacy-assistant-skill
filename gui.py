@@ -2,10 +2,13 @@ from xml.dom.expatbuilder import parseString
 from pywebio.output import *
 
 class SimpleGUI:
+    HOME_URL = 'https://storage.googleapis.com/mocha-instructions/screen.png'
+
     def __init__(self):
         self.states = ['stand_by','recording','thinking','speaking']
         self.current_state = 'stand_by'
         self._update_text('Stand by')
+        self.reset_image()
 
     def advance(self, event):
         if event == 'recognizer_loop:wakeword':
@@ -35,11 +38,18 @@ class SimpleGUI:
         put_html(c.render_notebook())
         pass
 
+    @use_scope(name='graph', clear=True)
+    def put_image(self, url):
+        put_image(url)
+
+    def reset_image(self):
+        self.put_image(self.HOME_URL)
+
     def _set_state(self, new_state):
         assert new_state in self.states
         self.current_state = new_state
 
-    @use_scope(name='main',clear=True)
+    @use_scope(name='main', clear=True)
     def _update_text(self, txt):
         #put_text(txt).style('color: red')
         put_html(

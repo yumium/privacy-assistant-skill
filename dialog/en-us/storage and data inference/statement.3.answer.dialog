@@ -1,0 +1,1 @@
+Data that is not so sensitive can be used to infer data that is more sensitive. The thermostat can use temperature data to infer about your sleep schedule, or when you are away from home.

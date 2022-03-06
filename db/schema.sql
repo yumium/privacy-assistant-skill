@@ -15,7 +15,13 @@ CREATE TABLE devices (
 -- Entities are all the devices in the home vicinity. Each device corresponds to one or more entities
 DROP TABLE IF EXISTS entities CASCADE;
 CREATE TABLE entities (
-	name VARCHAR(50) PRIMARY KEY
+	name VARCHAR(50) PRIMARY KEY,
+	device_id VARCHAR(20) REFERENCES devices(id),  -- The device this entity belongs to, if exists
+	info TEXT,  -- Info string if this entity doesn’t belong to any device
+
+	Constraint reference_chk Check(  -- Either an entity references a device or it has an info string
+		(device_id IS NULL) != (info IS NULL)
+	)
 );
 
 
@@ -106,7 +112,8 @@ DROP TABLE IF EXISTS device_data_collection_controls CASCADE;
 CREATE TABLE device_data_collection_controls (
 	device_id VARCHAR(20) NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
 	purpose VARCHAR(50) NOT NULL REFERENCES purposes(name) ON DELETE CASCADE,
-	control TEXT NOT NULL  -- Entries with no control will not be registered
+	control TEXT NOT NULL,  -- Entries with no control will not be registered
+	url TEXT NOT NULL DEFAULT 'https://storage.googleapis.com/mocha-instructions/phone.png'
 
 	-- Ideally we want to check that (device_id, purpose) pair is present in device_data_collection_purpose
 );
@@ -120,6 +127,7 @@ CREATE TABLE device_data_collection_urgent_controls (
 	data_source VARCHAR(50) NOT NULL REFERENCES data_source(name) ON DELETE CASCADE,
 	description TEXT NOT NULL,  -- Description of the urgent control 
 	control TEXT,      			-- Control information for the urgent control. Null means no control is available
+	url TEXT NOT NULL DEFAULT 'https://storage.googleapis.com/mocha-instructions/phone.png',
 
 	PRIMARY KEY (id),
 	CONSTRAINT fk_pair

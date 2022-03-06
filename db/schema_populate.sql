@@ -33,15 +33,15 @@ INSERT INTO devices (id, name, manufacturer)
 
 -- Entities are all the devices in the home vicinity. Each device corresponds to one or more entities
 
-INSERT INTO entities (name) VALUES ('Withings Body Cardio');
-INSERT INTO entities (name) VALUES ('Philips Hue Bridge');
-INSERT INTO entities (name) VALUES ('Philips Hue Bulb');
-INSERT INTO entities (name) VALUES ('WeMo Switch');
-INSERT INTO entities (name) VALUES ('WeMo Motion');
-INSERT INTO entities (name) VALUES ('Phone');
-INSERT INTO entities (name) VALUES ('Mocha');
-INSERT INTO entities (name) VALUES ('Router');
-INSERT INTO entities (name) VALUES ('Internet');
+INSERT INTO entities (name, device_id) VALUES ('Withings Body Cardio', 'WIT-BODYCA-98299053');
+INSERT INTO entities (name, device_id) VALUES ('Philips Hue Bridge', 'PHI-HUEBUL-258280268');
+INSERT INTO entities (name, device_id) VALUES ('Philips Hue Bulb', 'PHI-HUEBUL-296608048');
+INSERT INTO entities (name, device_id) VALUES ('WeMo Switch', 'BEL-WEMOSW-7571896');
+INSERT INTO entities (name, device_id) VALUES ('WeMo Motion', 'BEL-WEMOSW-7571896');
+INSERT INTO entities (name, info) VALUES ('Phone', 'This is your mobile device. It is usually used to control your smart home devices.');
+INSERT INTO entities (name, info) VALUES ('Mocha', 'This is me, your personal privacy assistant. I monitor all web traffic of your smart home devices.');
+INSERT INTO entities (name, info) VALUES ('Router', 'This is your home router , which is what allows your devices to connect to the internet.');
+INSERT INTO entities (name, info) VALUES ('Internet', 'This is the internet, made up of computers around the globe.');
 
 
 
