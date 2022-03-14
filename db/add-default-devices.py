@@ -11,7 +11,24 @@ def copy_purpose(DB_MANAGER, client_name=None):
 			FROM purposes
 		'''
 	,None)
+
+	DB_MANAGER.execute(f"INSERT INTO {client_name}.progress VALUES ('the internet')", None)
+	DB_MANAGER.execute(f"INSERT INTO {client_name}.progress VALUES ('data storage and inference')", None)
+
+# Pre: devices have been added
+def initialise_progress(DB_MANAGER, client_name=None):
+	if client_name is None:
+		client_name = databaseBursts.CLIENT_NAME
 	
+	DB_MANAGER.execute(
+		f'''
+			INSERT INTO {client_name}.progress
+			SELECT DISTINCT data_source
+			FROM {client_name}.devices D, device_data_collection C
+			WHERE D.id = C.device_id
+		'''
+	,None)
+
 
 def register_device(DB_MANAGER, device_name, device_manufacturer, client_name=None): # client_name is the schema for the client
 	
@@ -25,7 +42,7 @@ def register_device(DB_MANAGER, device_name, device_manufacturer, client_name=No
 	)
 
 	if device_id is None:
-		print("Registration failed. Device not found in database.")
+		print(f"Registration failed. Device {device_name} not found in database.")
 		return
 
 	device_id = device_id[0] # The returned result from the query is a tuple of answers from each statement executed
@@ -56,15 +73,17 @@ def main():
 	owned_devices = [
 		('Withings Body Cardio', 'Withings'),
 		('Philips Hue Bulb', 'Philips'),
-		('Philips Hue Bridge', 'Philips'),
 		('WeMo Switch and Motion', 'Belkin')
 	]
 
 	DB_MANAGER = databaseBursts.dbManager()
 
 	copy_purpose(DB_MANAGER)
+
 	for d in owned_devices:
 		register_device(DB_MANAGER, d[0], d[1])
+
+	initialise_progress(DB_MANAGER)
 
 if __name__ == '__main__':
 	main()

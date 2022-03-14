@@ -1,0 +1,1 @@
+Go to the most recent email from Belkin and click "Unsubscribe" on the bottom of the email.

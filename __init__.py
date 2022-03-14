@@ -1,20 +1,33 @@
-from pickle import NONE
-from urllib.parse import urljoin
-from mycroft import MycroftSkill, intent_file_handler, intent_handler
+from xml.dom.pulldom import parseString
+from mycroft import MycroftSkill, intent_handler
 from adapt.intent import IntentBuilder
 from time import sleep
 from mycroft.util.parse import match_one
 from . import (gui, graph)
 from .db import (databaseBursts)
+from os.path import join as osjoin
+import string
 
 DB_MANAGER = databaseBursts.dbManager()
 CLIENT_NAME = databaseBursts.CLIENT_NAME
 GUI = gui.SimpleGUI()
+MASTER_CURRICULUM = [  # Order of curriculum for all data source. Actual user curriculum will be a subsequence of this.
+    'the internet',
+    'account data',
+    'usage data',
+    'body data',
+    'financial data',  # hypothetical data source
+    'third-party service',
+    'third-party integration',
+    'data storage and inference'
+]
+CURRICULUM_DIR = 'curriculum'
 
 class PrivacyAssistant(MycroftSkill):
     def __init__(self):
         MycroftSkill.__init__(self)
         self._locvars = {} # A dictionary of local variables for context storage during user confirmation
+        self.curriculum = [] # Personalised curriculum based on users' devices
 
     def _set_locvar(self, key,value):
         assert isinstance(key, str)
@@ -42,7 +55,43 @@ class PrivacyAssistant(MycroftSkill):
         for evt in events:
             self.add_event(evt, self.handle_event_constructor(evt))
 
+        self.add_devices()
+        self.show_curriculum()
+
+    # Displays dashboard
+    def show_home(self):
+        num_finished = DB_MANAGER.execute(f"SELECT COUNT(*) FROM {CLIENT_NAME}.progress WHERE status = TRUE", None)[0][0]
+        num_total = len(self.curriculum)
+        GUI.put_home(round(num_finished / num_total, 2))
+
+    # Displays progress in curriculum
+    def show_curriculum(self):
+        curriculum = DB_MANAGER.execute(f"SELECT * FROM {CLIENT_NAME}.progress",None)  # The list of pairs of curriculum items with a boolean representing if the user has finished it or not
+        curriculum.sort(key=lambda x: self.curriculum.index(x[0]))  # Sort based on order in self.curriculum
+        GUI.put_curriculum(curriculum)
+
+    # Displays current control in device
+    def show_device(self, device):
+        pass
+
+    # !!! Slight issue with this. We just lack a good framework for handling flows ...
+    def handle_module(self, module):
+        assert module in self.curriculum
+
+        callback = None  # The continuation for the curriculum
+        if module == 'the internet':
+            callback = self.handle_assistant_privacy
+        elif module == 'data storage and inference':
+            callback = self.handle_storage_and_data
+        else:
+            callback = lambda: self.handle_data_tutoring_data_source_intro(module)
+        
+        callback()
+        # Log completion of module
+        DB_MANAGER.execute(f"UPDATE {CLIENT_NAME}.progress SET status = TRUE WHERE title = '{module}'", None)
+
     def handle_assistant_privacy(self, message):
+        GUI.put_disclosure()
         self.speak_dialog('disclosure1',wait=True)
         sleep(1)
         self.speak_dialog('disclosure2',wait=True)
@@ -51,21 +100,14 @@ class PrivacyAssistant(MycroftSkill):
         sleep(1)
         self.speak_dialog('disclosure4',wait=True)
 
-        agree = self.ask_yesno('accept.policy')
-        num_tries = 1
-        MAX_TRIES = 5
-        while agree != 'yes' and agree != 'no' and num_tries < MAX_TRIES:
-            self.speak_dialog('confused')
-            agree = self.ask_yesno('accept.policy')
-            num_tries += 1
-
-        if agree == 'no':
-            self.log.error('No!')
+        agree = self._ask_yesno_safe('accept.policy')
+        if agree is None:
+            self.speak_dialog('error')
+            return
+        elif agree == 'no':
             self.speak_dialog('decline.policy')
-
         elif agree == 'yes':
-            self.log.error('Yes!')
-
+            GUI.put_open_data()
             self.speak_dialog('opendata1',wait=True)
             sleep(1)
             self.speak_dialog('opendata2',wait=True)
@@ -78,14 +120,37 @@ class PrivacyAssistant(MycroftSkill):
 
             if agree is None:
                 self.speak_dialog('error')
+                return
             elif agree == 'yes':
-                self.log.error('Yes!')
+                self.speak_dialog('acknowledge')
+                self.speak_dialog('onscreen.instructions')
+                self._put_md('open-data-project.md')
+                self.set_context('OpenDataContext')
             elif agree == 'no':
-                self.log.error('No!')
+                self.speak_dialog('acknowledge')
+                self.handle_internet_intro(None)
 
-            self.handle_internet_intro(None)
+    # A fictitious process that simulate the client adding devices
+    def add_devices(self):
+        data_sources = [d[0] for d in DB_MANAGER.execute(f'SELECT title FROM {CLIENT_NAME}.progress', None)]
+        self.curriculum = self._sort_merge(MASTER_CURRICULUM, data_sources + ['the internet', 'data storage and inference'])
 
+    def _sort_merge(self, big, small):
+        '''
+            Pre: `small` is a subset of `big` AND all elements in `big` and `small` are unique
+            Post: A subsequence of `big` that contains only the elements in `small`
+            (the algorithm is naive, assuming small `big` and `small` sizes)
+        '''
+        return [x for x in big if x in small]
+
+    @intent_handler(IntentBuilder('Internet Intro').require('done').require('OpenDataContext'))
     def handle_internet_intro(self, message):
+        self.remove_context('OpenDataContext')
+
+        GUI.put_module(1, 'The Internet')
+        self.speak_dialog('internet.intro.0',wait=True)
+        GUI.put_graph(graph.generate_full_graph())
+        sleep(1)
         self.speak_dialog('internet.intro.1',wait=True)
         sleep(1)
         self.speak_dialog('internet.intro.2',wait=True)
@@ -100,7 +165,7 @@ class PrivacyAssistant(MycroftSkill):
         elif understand == 'yes':
             self.handle_internet_tutoring(None)
         elif understand == 'no':
-            # Display more information
+            self._put_md('the-internet.md')
             self.speak_dialog('more.info')
             self.set_context('InternetReadingDoneContext')
 
@@ -115,8 +180,7 @@ class PrivacyAssistant(MycroftSkill):
         while not skipped:
             GUI.put_graph(graph.generate_full_graph())
 
-            #response = self._ask_device_selection_safe(entities, 'query.internet.device')
-            response = self._ask_device_selection_safe(entities, 'Huh?')
+            response = self._ask_device_selection_safe(entities, 'query.internet.device')
             if response == 'skip':
                 skipped = True
                 self.speak_dialog('Skipped')
@@ -140,7 +204,10 @@ class PrivacyAssistant(MycroftSkill):
                         sleep(5)
 
     def handle_data_tutoring_data_source_intro(self, data_source):
+        assert data_source in self.curriculum
+
         self.speak(f"Welcome back! Today we will talk about {data_source}.")
+        GUI.put_module(self.curriculum.index(data_source) + 1, string.capwords(data_source))
 
         understand = self._ask_yesno_safe('query.familiar')
         if understand is None:
@@ -154,6 +221,7 @@ class PrivacyAssistant(MycroftSkill):
                 self.speak_dialog('error')
                 return
             elif more_info == 'yes':
+                self._put_md(osjoin('data-sources', data_source.replace(' ', '-') + '.md'))
                 self.speak_dialog('more.info')
                 self.set_context('PurposeIntroContext')
                 self._set_locvar('DataSourceContext',data_source)
@@ -184,7 +252,7 @@ class PrivacyAssistant(MycroftSkill):
 
         urgents = DB_MANAGER.execute(
         f'''
-            SELECT C.id, D.name, C.data_source, C.description, C.control, C.url
+            SELECT C.id, D.name, C.data_source, C.description, C.control
             FROM device_data_collection_urgent_controls C, devices D
             WHERE C.device_id = D.id AND C.data_source = '{data_source}'
         '''
@@ -206,10 +274,9 @@ class PrivacyAssistant(MycroftSkill):
             self.log.error(f"a = {a}, b = {b}, purpose = {purpose}")
         return a / b
 
-    @intent_handler(IntentBuilder('Continue urgent control').require('done').require('NextUrgentControlContext'))
     def handle_next_urgent_control(self, data_source):
         self.remove_context('NextUrgentControlContext')
-        GUI.reset_image()
+
         urgents = self._get_locvar('Urgents')
         if len(urgents) == 0:  # All urgent controls have been taken care of
             self._remove_locvars('Urgents')
@@ -218,26 +285,38 @@ class PrivacyAssistant(MycroftSkill):
         else:
             self.handle_urgent_control(*urgents.pop())
 
-    def handle_urgent_control(self, urgent_id, device_name, data_source, description, control, url):
+    @intent_handler(IntentBuilder('Continue urgent control').require('done').require('NextUrgentControlContext'))
+    def handle_next_urgent_control_continue(self, message):
+        self.remove_context('NextUrgentControlContext')
+        data_source = self._get_locvar('data_source')
+        self._remove_locvars('data_source')
+
+        self.handle_next_urgent_control(data_source)
+
+    def handle_urgent_control(self, urgent_id, device_name, data_source, description, control):
         self.speak_dialog('urgent.worried')
-        self.speak(description)
+        GUI.put_urgent(description)
+        self.speak(description, wait=True); sleep(1)
 
         response = None
         if control is None:
-            self.speak('no.control')
+            self.speak_dialog('no.control', wait=True); sleep(1)
             response = self._ask_yesno_safe('query.firm.for.control')
         else:
-            self.speak(control)
-            response = self._ask_yesno_safe('query.diable')
+            self.speak(control, wait=True); sleep(1)
+            response = self._ask_yesno_safe('query.disable')
         
         if response is None:
             self.speak_dialog('error',wait=True)
         elif response == 'yes':
+            # Log the control being taken
+            DB_MANAGER.execute(f"UPDATE {CLIENT_NAME}.device_data_collection_urgent_controls SET taken = TRUE WHERE id = {urgent_id}",None)
+
             if control is None:
                 self.speak_dialog('done',wait=True)
             else:
+                self._put_md(osjoin('urgent-control', str(urgent_id) + '.md'))
                 self.speak_dialog('onscreen.instructions',wait=True)
-                GUI.put_image(url)
                 self.set_context('NextUrgentControlContext','')
                 return
         else:
@@ -247,7 +326,8 @@ class PrivacyAssistant(MycroftSkill):
 
     def handle_data_purpose_intro(self, data_source, purpose, relevant_devices):
         purpose_introduced = DB_MANAGER.execute(f"SELECT introduced FROM {CLIENT_NAME}.purposes WHERE name = '{purpose}'", None)[0][0]
-        self.speak(f"Your device uses {data_source} for {purpose}.")  
+        GUI.put_dp(data_source, purpose)
+        self.speak_dialog('data.purpose.intro', {'data_source': data_source, 'purpose': purpose})
         if purpose_introduced:
             remember = self._ask_yesno_safe('query.purpose.remember', {'purpose': purpose})
             if remember is None:
@@ -271,6 +351,7 @@ class PrivacyAssistant(MycroftSkill):
                     self.speak_dialog('error')
                     return
                 elif more_info == 'yes':
+                    self._put_md(osjoin('collection-purposes', purpose.replace(' ','-') + '.md'))
                     self.speak_dialog('more.info')
                     self.set_context('PurposeContinueContext')
                     self._set_locvar('DataSourceContext',data_source)
@@ -296,6 +377,7 @@ class PrivacyAssistant(MycroftSkill):
     def handle_data_purpose2(self, data_source, purpose, relevant_devices):
         for d in relevant_devices:
             # No need to repeat in full if purpose was not explained
+            GUI.put_ddp(d, data_source, purpose)
             concerned = self._ask_yesno_safe('query.concern',{'device': d, 'data_source': data_source, 'purpose': purpose})
             if concerned is None:
                 self.speak_dialog('error')
@@ -317,18 +399,18 @@ class PrivacyAssistant(MycroftSkill):
 
                     control = DB_MANAGER.execute(  # Whether control is available
                         f'''
-                            SELECT C.control, C.url
+                            SELECT C.control, C.device_id
                             FROM device_data_collection_controls C, devices D
                             WHERE C.device_id = D.id AND D.name = '{d}' AND C.purpose = '{purpose}'
-                        '''    
+                        ''' # piggybacks device id as it will be useful. As (device_id, purpose) forms a key, the query has at most 1 rows
                     ,None)
 
                     if len(control) > 0:
                         self.speak_dialog('manual.control', {'control_info': control[0][0]})
-                        GUI.put_image(control[0][1])
+                        self._put_md(osjoin('controls', control[0][1] + '-' + purpose.replace(' ','-') + '.md'))
                         self._set_locvar('DataSourceContext', data_source)
                         self._set_locvar('PurposeContext', purpose)
-                        self._set_locvar('RelevantDevicesContext', relevant_devices[relevant_devices.index(d):])
+                        self._set_locvar('RelevantDevicesContext', relevant_devices[relevant_devices.index(d):])  # remove previous devices
                         self.set_context('SettingsContext')
                         return
                     else:
@@ -354,6 +436,7 @@ class PrivacyAssistant(MycroftSkill):
             self.handle_data_purpose_intro(data_source, p, self._get_locvar('Purposes')[p])
         else:
             self._remove_locvars('Purposes', 'PurposeList')
+            GUI.congradulate(self.curriculum.index(data_source) + 1, string.capwords(data_source))
             self.speak("Great work! That is it for today, come back tomorrow to learn about the next data source. You can also say “continue” to start tomorrow's material right now")
 
 
@@ -361,7 +444,6 @@ class PrivacyAssistant(MycroftSkill):
     @intent_handler(IntentBuilder('Continue settings').require('done').require('SettingsContext'))
     def handle_settings_done(self, message):
         self.speak_dialog('congradulate')
-        GUI.reset_image()
 
         data_source = self._get_locvar('DataSourceContext')
         purpose = self._get_locvar('PurposeContext')
@@ -421,10 +503,21 @@ class PrivacyAssistant(MycroftSkill):
 
     @intent_handler(IntentBuilder('Start Demo').require('unique'))
     def _test(self, message):
-        #GUI.put_graph(graph.generate_graph_postgres('Philips Hue Bulb', 'ZigBee'))
-        #self.speak('okay')
-        # self.handle_internet_tutoring(None)
-        self.handle_storage_and_data()
+        data_source = 'body data'
+        self.handle_module('body data')
+        # self.speak_dialog('acknowledge')
+
+    def _put_md(self, fname):
+        '''
+            Displays content of file `fname` on the main screen
+            `fname` is the string containing the relative directory of the file under CURRICULUM_DIR 
+        '''
+        try:
+            self.file_system.exists(osjoin(CURRICULUM_DIR, fname))
+            with self.file_system.open(osjoin(CURRICULUM_DIR, fname), 'r') as my_file:
+                GUI.put_md(my_file.read())
+        except:
+            self.speak_dialog('error.file.not.available')
 
     def _ask_device_selection(self, options, dialog='Which one would you like?',
                       data=None, min_conf=0.65):

@@ -16,13 +16,6 @@ INSERT INTO devices (id, name, manufacturer)
 
 INSERT INTO devices (id, name, manufacturer)
 	VALUES (
-		'PHI-HUEBUL-258280268',
-		'Philips Hue Bridge',
-		'Philips'
-	);
-
-INSERT INTO devices (id, name, manufacturer)
-	VALUES (
 		'BEL-WEMOSW-7571896',
 		'WeMo Switch and Motion',
 		'Belkin'
@@ -34,7 +27,7 @@ INSERT INTO devices (id, name, manufacturer)
 -- Entities are all the devices in the home vicinity. Each device corresponds to one or more entities
 
 INSERT INTO entities (name, device_id) VALUES ('Withings Body Cardio', 'WIT-BODYCA-98299053');
-INSERT INTO entities (name, device_id) VALUES ('Philips Hue Bridge', 'PHI-HUEBUL-258280268');
+INSERT INTO entities (name, device_id) VALUES ('Philips Hue Bridge', 'PHI-HUEBUL-296608048');
 INSERT INTO entities (name, device_id) VALUES ('Philips Hue Bulb', 'PHI-HUEBUL-296608048');
 INSERT INTO entities (name, device_id) VALUES ('WeMo Switch', 'BEL-WEMOSW-7571896');
 INSERT INTO entities (name, device_id) VALUES ('WeMo Motion', 'BEL-WEMOSW-7571896');
@@ -148,16 +141,8 @@ INSERT INTO device_data_flow_example (device_id, protocol, example, purpose)
 	VALUES (
 		'PHI-HUEBUL-296608048',
 		'ZigBee',
-		'when you switch the bulbs off from your phone, the Philips Hue Bridge sends the command via ZigBee to the bulbs to turn them off',
+		'when you switch the bulbs off from your phone, your phone sends the command to the Philips Hue Bridge via WiFi, then the bridge sends the command via ZigBee to the bulbs to turn them off',
 		'receive automation commands from the Philips Hue Bridge'
-	);
-
-INSERT INTO device_data_flow_example (device_id, protocol, example, purpose)
-	VALUES (
-		'PHI-HUEBUL-258280268',
-		'WiFi',
-		'when you switch the bulbs off from your phone, your phone sends the command via WiFi to the Philips Hue Bridge, which will then turn off the bulbs',
-		'receive automations and commands from the phone'
 	);
 
 INSERT INTO device_data_flow_example (device_id, protocol, purpose)
@@ -226,26 +211,6 @@ INSERT INTO device_data_flow_edges (device_id, protocol, source, target, edge_pr
 		'Phone',
 		'WiFi'
 	);	
-
-
-INSERT INTO device_data_flow_edges (device_id, protocol, source, target, edge_protocol)
-	VALUES (
-		'PHI-HUEBUL-258280268',
-		'WiFi',
-		'Mocha',
-		'Philips Hue Bridge',
-		'WiFi'
-	);	
-
-INSERT INTO device_data_flow_edges (device_id, protocol, source, target, edge_protocol)
-	VALUES (
-		'PHI-HUEBUL-258280268',
-		'WiFi',
-		'Mocha',
-		'Phone',
-		'WiFi'
-	);	
-
 
 INSERT INTO device_data_flow_edges (device_id, protocol, source, target, edge_protocol)
 	VALUES (
@@ -532,15 +497,15 @@ INSERT INTO device_data_collection_purpose (device_id, data_source, purpose)
 INSERT INTO device_data_collection_controls (device_id, purpose, control)
 	VALUES (
 		'WIT-BODYCA-98299053',
-		'personalisation',
-		'Disable customisation in app'
+		'product feedback and improvement',
+		'Disable in app on sending data for product feedback'
 	);
 
 INSERT INTO device_data_collection_controls (device_id, purpose, control)
 	VALUES (
 		'WIT-BODYCA-98299053',
 		'marketing',
-		'Disable marketing from Hue or Friends of Hue in app'
+		'Disable in app on news and promotional offer'
 	);
 
 INSERT INTO device_data_collection_controls (device_id, purpose, control)
@@ -555,14 +520,14 @@ INSERT INTO device_data_collection_controls (device_id, purpose, control)
 	VALUES (
 		'PHI-HUEBUL-296608048',
 		'marketing',
-		'Disable in app on news and promotional offer'
+		'Disable marketing from Hue or Friends of Hue in app'
 	);
 
 INSERT INTO device_data_collection_controls (device_id, purpose, control)
 	VALUES (
 		'PHI-HUEBUL-296608048',
-		'product feedback and improvement',
-		'Disable in app on sending data for product feedback'
+		'personalisation',
+		'Disable customization in app'
 	);
 
 INSERT INTO device_data_collection_controls (device_id, purpose, control)
@@ -601,7 +566,7 @@ INSERT INTO device_data_collection_controls (device_id, purpose, control)
 INSERT INTO device_data_collection_urgent_controls (device_id, data_source, description, control)
 	VALUES (
 		'WIT-BODYCA-98299053',
-		'third-party service',
+		'body data',
 		'Your Withings Body Cardio shares your health data to their Research Hub to help medical research and improve health and wellness of patients.',
 		'You can disable this, and it will not affect the functionality of the app.'
 	);

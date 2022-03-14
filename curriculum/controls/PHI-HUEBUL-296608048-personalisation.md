@@ -1,0 +1,1 @@
+Disable in app on sending data for product feedback

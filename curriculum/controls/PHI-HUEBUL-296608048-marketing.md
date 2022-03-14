@@ -1,0 +1,1 @@
+Disable in app on news and promotional offer

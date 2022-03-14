@@ -1,0 +1,2 @@
+Go to the settings ⚙️ on the top left of screen, then go to "Connect to Other Services" to disable third-party integration.
+![instruction image](https://storage.googleapis.com/mocha-instructions/BEL-WEMOSW-7571896-third-party-integration.jpg)

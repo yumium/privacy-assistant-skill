@@ -1,0 +1,2 @@
+To opt-in or opt-out, visit account.mycroft.ai/profile, login to your account, and click the "Opt In"/"Opt Out" button next to "Open Dataset"
+![instruction image](https://storage.googleapis.com/mocha-instructions/open-data-project.png)

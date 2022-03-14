@@ -1,0 +1,1 @@
+Disable in app for MyFitnessPal and other integrations

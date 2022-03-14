@@ -113,8 +113,8 @@ CREATE TABLE device_data_collection_controls (
 	device_id VARCHAR(20) NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
 	purpose VARCHAR(50) NOT NULL REFERENCES purposes(name) ON DELETE CASCADE,
 	control TEXT NOT NULL,  -- Entries with no control will not be registered
-	url TEXT NOT NULL DEFAULT 'https://storage.googleapis.com/mocha-instructions/phone.png'
 
+	PRIMARY KEY (device_id, purpose)
 	-- Ideally we want to check that (device_id, purpose) pair is present in device_data_collection_purpose
 );
 
@@ -127,7 +127,6 @@ CREATE TABLE device_data_collection_urgent_controls (
 	data_source VARCHAR(50) NOT NULL REFERENCES data_source(name) ON DELETE CASCADE,
 	description TEXT NOT NULL,  -- Description of the urgent control 
 	control TEXT,      			-- Control information for the urgent control. Null means no control is available
-	url TEXT NOT NULL DEFAULT 'https://storage.googleapis.com/mocha-instructions/phone.png',
 
 	PRIMARY KEY (id),
 	CONSTRAINT fk_pair
@@ -168,4 +167,9 @@ CREATE TABLE client.device_data_collection_urgent_controls (
 	taken BOOLEAN NOT NULL DEFAULT FALSE, 	-- If action is taken for this urgent control
 
 	PRIMARY KEY (id)
+);
+
+CREATE TABLE client.progress (
+	title VARCHAR(50) NOT NULL,  -- Title of the module
+	status BOOLEAN NOT NULL DEFAULT FALSE  -- Whether the user has completed it or not
 );

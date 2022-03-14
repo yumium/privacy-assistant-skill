@@ -1,6 +1,8 @@
 from pyecharts import options as opts
-from pyecharts.charts import Graph
+from pyecharts.charts import Graph, Liquid, Grid, Pie, Timeline
+from pyecharts.commons.utils import JsCode
 from .db import (databaseBursts)
+import string
 
 DB_MANAGER = databaseBursts.dbManager()
 CLIENT_NAME = databaseBursts.CLIENT_NAME
@@ -15,11 +17,11 @@ def generate_full_graph():
     nodes = []
     for n in entities:
         if n == 'Mocha':
-            nodes.append(opts.GraphNode(name='Mocha', x=100, y=300, is_fixed=True))
+            nodes.append(opts.GraphNode(name='Mocha', x=100, y=300, is_fixed=True, category=0, symbol="image://https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/solid/robot.svg"))
         elif n == 'Router':
-            nodes.append(opts.GraphNode(name='Router', x=100, y=320, is_fixed=True))
+            nodes.append(opts.GraphNode(name='Router', x=100, y=320, is_fixed=True, category=0, symbol="image://https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/solid/route.svg"))
         elif n == 'Internet':
-            nodes.append(opts.GraphNode(name='Internet', x=100, y=340, is_fixed=True))
+            nodes.append(opts.GraphNode(name='Internet', x=100, y=340, is_fixed=True, category=0, symbol="image://https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/solid/cloud.svg"))
         else:
             nodes.append(opts.GraphNode(name=n, x=100, y=100))
     
@@ -43,19 +45,26 @@ def generate_full_graph():
             label_opts=opts.LabelOpts(formatter='/'.join(sorted(ps)), position='middle')))
         
     # Links for Mocha - Router - Internet
-    links.append(opts.GraphLink(source='Mocha', target='Router', linestyle_opts=opts.LineStyleOpts(color='rgb(255,0,0)')))
-    links.append(opts.GraphLink(source='Router', target='Internet', linestyle_opts=opts.LineStyleOpts(color='rgb(255,0,0)')))
-        
+    links.append(opts.GraphLink(source='Mocha', target='Router'))
+    links.append(opts.GraphLink(source='Router', target='Internet'))
+    
+    categories = [
+        opts.GraphCategory(symbol='roundRect')
+    ]
+
     c = (
         Graph()
         .add(
             "",
             nodes,
             links,
+            categories,
             is_focusnode=False,
-            linestyle_opts=opts.LineStyleOpts(color='rgb(255,0,0)'),
+            linestyle_opts=opts.LineStyleOpts(color='rgb(0,0,0)'),
+            label_opts=opts.LabelOpts(distance=0.01),
             edge_length=50,
             repulsion=150,
+            symbol='triangle',
             symbol_size=20
         )
     )
@@ -87,11 +96,11 @@ def generate_graph(device, protocol):
     nodes = []
     for n in entities:
         if n == 'Mocha':
-            nodes.append(opts.GraphNode(name='Mocha', x=100, y=300, is_fixed=True))
+            nodes.append(opts.GraphNode(name='Mocha', x=100, y=300, is_fixed=True, category=1, symbol="image://https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/solid/robot.svg"))
         elif n == 'Router':
-            nodes.append(opts.GraphNode(name='Router', x=100, y=320, is_fixed=True))
+            nodes.append(opts.GraphNode(name='Router', x=100, y=320, is_fixed=True, category=1, symbol="image://https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/solid/route.svg"))
         elif n == 'Internet':
-            nodes.append(opts.GraphNode(name='Internet', x=100, y=340, is_fixed=True))
+            nodes.append(opts.GraphNode(name='Internet', x=100, y=340, is_fixed=True, category=1, symbol="image://https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/solid/cloud.svg"))
         else:
             if n in relevant_nodes:
                 nodes.append(opts.GraphNode(name=n, x=100, y=100))
@@ -102,22 +111,24 @@ def generate_graph(device, protocol):
     for e in edges:
         if e in relevant_edges:
             links.append(opts.GraphLink(source=e[0], target=e[1], 
-                linestyle_opts=opts.LineStyleOpts(color='rgb(255,0,0)'),
                 label_opts=opts.LabelOpts(formatter=relevant_edges[e], position='middle')))
         else:
             links.append(opts.GraphLink(source=e[0], target=e[1], 
                 linestyle_opts=opts.LineStyleOpts(color='rgb(178,190,181)')))
 
     links.append(opts.GraphLink(source='Mocha', target='Router', 
-        linestyle_opts=opts.LineStyleOpts(color='rgb(255,0,0)' if connects_to_internet else 'rgb(178,190,181)')))
+        linestyle_opts=opts.LineStyleOpts(color='inherit' if connects_to_internet else 'rgb(178,190,181)')))
     links.append(opts.GraphLink(source='Router', target='Internet', 
-        linestyle_opts=opts.LineStyleOpts(color='rgb(255,0,0)' if connects_to_internet else 'rgb(178,190,181)')))
+        linestyle_opts=opts.LineStyleOpts(color='inherit' if connects_to_internet else 'rgb(178,190,181)')))
 
     categories = [
         opts.GraphCategory(
             symbol='roundRect',
             symbol_size=5,
             label_opts=opts.LabelOpts(color='rgb(178,190,181)')
+        ),
+        opts.GraphCategory(
+            symbol='roundRect'
         )
     ]
     
@@ -129,11 +140,124 @@ def generate_graph(device, protocol):
             links,
             categories,
             is_focusnode=False,
+            linestyle_opts=opts.LineStyleOpts(color='rgb(0,0,0)'),
+            label_opts=opts.LabelOpts(distance=0.01),
             edge_length=50,
             repulsion=150,
+            symbol='triangle',
             symbol_size=20
         )
     )
     
     return c
 
+def generate_liquid(perc):
+    l = (
+        Liquid()
+        .add(
+            "lq",
+            [perc],
+            label_opts=opts.LabelOpts(
+                font_size=50,
+                formatter=JsCode(
+                    """function (param) {
+                        return (Math.floor(param.value * 10000) / 100) + '%';
+                    }"""
+                ),
+                position="inside",
+                color="white"
+            ),
+            color="white",
+            background_color="purple",
+            outline_itemstyle_opts=opts.ItemStyleOpts(border_color="purple")
+        )
+    )
+
+    return l
+
+
+def generate_device_orbit():
+    nodes = [
+        opts.GraphNode(name='Root', x=100, y=80, is_fixed=True, symbol='pin', symbol_size=0, label_opts=opts.LabelOpts(is_show=False)),
+        opts.GraphNode(name='Withings Body Cardio', category=0, x=100, y=30),
+        opts.GraphNode(name='Philips Hue Bulb', category=0, x=100, y=30),
+        opts.GraphNode(name='Belkin Switch and Motion', category=0, x=100, y=150)
+    ]
+
+    links = [
+        opts.GraphLink(source='Root', target='Withings Body Cardio', linestyle_opts=opts.LineStyleOpts(width=0)),
+        opts.GraphLink(source='Root', target='Philips Hue Bulb', linestyle_opts=opts.LineStyleOpts(width=0)),
+        opts.GraphLink(source='Root', target='WeMo Switch and Motion', linestyle_opts=opts.LineStyleOpts(width=0))
+    ]
+
+    categories = [
+        opts.GraphCategory(symbol='circle', label_opts=opts.LabelOpts(color='black'))
+    ]
+
+    c = (
+        Graph()
+        .add(
+            "",
+            nodes,
+            links,
+            categories,
+            edge_length=50,
+            symbol_size=80,
+            repulsion=250
+        )
+    )
+
+    return c
+
+def generate_home(perc):
+    l = generate_liquid(perc)
+    c = generate_device_orbit()
+
+    grid = (
+        Grid()
+        .add(l, grid_opts=opts.GridOpts(pos_top="60%"))
+        .add(c, grid_opts=opts.GridOpts(pos_bottom="50%"))
+    )
+    
+    return grid
+
+def generate_curriculum_view(curriculum):
+    tl = Timeline().add_schema(
+        play_interval=1000,
+        is_auto_play=True,
+        orient='vertical',
+        height='250'
+    )
+
+    for i, (c,t) in enumerate(curriculum):
+        pie = (
+            Pie()
+            .set_global_opts(title_opts=opts.TitleOpts(
+                title=f"Module {i+1}: {string.capwords(c)}",
+                subtitle=f'''
+                {"You have completed this module" if t else "Module not completed"}
+                .
+                .
+                .
+                .
+                .
+                .
+                .
+                .
+                .
+                .
+                .
+                .
+                .
+                .
+                .
+                .
+                .
+                .
+                .
+                '''
+            ))
+        )
+        tl.add(pie, c)
+
+    return tl
