@@ -1,1 +1,1 @@
-Disable in app for MyFitnessPal and other integrations
+You can disable in app for MyFitnessPal and other integrations (details omitted in this demo)

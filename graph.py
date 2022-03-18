@@ -222,6 +222,10 @@ def generate_home(perc):
     return grid
 
 def generate_curriculum_view(curriculum):
+    '''
+        Curriculum is a list of pairs of curriculum name with a boolean that indicates its completion.
+        Pre: The list is sorted in the order which the materials are to be presented
+    '''
     tl = Timeline().add_schema(
         play_interval=1000,
         is_auto_play=True,
@@ -235,26 +239,7 @@ def generate_curriculum_view(curriculum):
             .set_global_opts(title_opts=opts.TitleOpts(
                 title=f"Module {i+1}: {string.capwords(c)}",
                 subtitle=f'''
-                {"You have completed this module" if t else "Module not completed"}
-                .
-                .
-                .
-                .
-                .
-                .
-                .
-                .
-                .
-                .
-                .
-                .
-                .
-                .
-                .
-                .
-                .
-                .
-                .
+                {"You have completed this module!" if t else "Module not completed"}
                 '''
             ))
         )

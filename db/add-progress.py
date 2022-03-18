@@ -15,7 +15,7 @@ def main():
 
 	# standard controls
 	DB_MANAGER.execute(f"UPDATE {CLIENT_NAME}.device_data_collection_controls SET taken = TRUE WHERE device_id = 'PHI-HUEBUL-296608048' AND purpose = 'marketing'", None)
-	DB_MANAGER.execute(f"UPDATE {CLIENT_NAME}.device_data_collection_controls SET taken = TRUE WHERE device_id = 'PHI-HUEBUL-296608048' AND purpose = 'personalisation'", None)
+	#DB_MANAGER.execute(f"UPDATE {CLIENT_NAME}.device_data_collection_controls SET taken = TRUE WHERE device_id = 'PHI-HUEBUL-296608048' AND purpose = 'personalisation'", None)
 	DB_MANAGER.execute(f"UPDATE {CLIENT_NAME}.device_data_collection_controls SET taken = TRUE WHERE purpose = 'product feedback and improvement'", None)
 
 if __name__ == '__main__':

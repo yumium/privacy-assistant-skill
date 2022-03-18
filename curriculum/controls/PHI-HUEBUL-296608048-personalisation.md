@@ -1,1 +1,1 @@
-Disable in app on sending data for product feedback
+You can disable in app on sending data for product feedback (details omitted in this demo)

@@ -1,1 +1,1 @@
-Disable in app on news and promotional offer
+You can disable in app for news and promotional offer (details omitted in this demo)

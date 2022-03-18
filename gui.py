@@ -1,4 +1,3 @@
-from urllib.parse import uses_fragment
 from . import (graph)
 from pywebio.output import *
 import datetime as dt
@@ -28,13 +27,13 @@ class SimpleGUI:
         self._init_layout()
         self._set_state('stand_by')
         put_text(f"{'{:%H:%M}'.format(dt.datetime.today())}                                                                                                                                                                        ☀️ 10°C", scope='header')
-        self.put_temp()
+        self.put_start_screen()
         put_text("Try say 'Hey Mocha, tell me about my privacy'", scope='footer')
 
     def _init_layout(self):
         put_scope('status_bar')
         put_scope('header')
-        put_scrollable(put_scope('main'), height=350, keep_bottom=True, border=False)
+        put_scrollable(put_scope('main'), height=400, keep_bottom=True, border=False)
         put_scope('footer')
 
     @use_scope('main', clear=True)
@@ -94,25 +93,16 @@ class SimpleGUI:
         )
 
     @use_scope('main', clear=True)
-    def put_temp(self):
-        txt = '18:30'
-        long_txt = '''
-            This is a long piece of text.
-            This is a long piece of text.
-            This is a long piece of text.
-            This is a long piece of text.
-            This is a long piece of text.
-            This is a long piece of text.
-        '''
+    def put_start_screen(self):
         put_html(
             f'''
                 <div style="
-                    height: 350px;
+                    height: 400px;
                     display: flex;
                     flex-direction: column;
                     align-items: center;
                     justify-content: center;
-                    background-image: url('https://storage.googleapis.com/mocha-instructions/northern_lights_2.jpg');
+                    background-image: url('https://storage.googleapis.com/mocha-instructions/northern_lights.jpg');
                     background-size: cover;
                     background-repeat: no-repeat;
                     background-position: center;
@@ -242,8 +232,36 @@ class SimpleGUI:
 
     @use_scope(name='main', clear=True)
     def put_curriculum(self, curriculum):
+        '''
+            Curriculum is a list of pairs of curriculum name with a boolean that indicates its completion.
+            Pre: The list is sorted in the order which the materials are to be presented
+        '''
         g = graph.generate_curriculum_view(curriculum)
         put_html(g.render_notebook())
+
+    @use_scope(name='main', clear=True)
+    def put_device(self, device_name, control_taken, control_offered_but_not_taken):
+        '''
+            Displays the controls taken and not taken with the device
+        '''
+        # put_markdown(f'''
+        # ## {device_name}
+
+        # ### Controls taken
+        # ✔️ Marketing
+        
+        # ### Controls not taken
+        # 🔲 Personalisation
+        # ''')
+
+        out = f"## {device_name} \n ### Controls taken \n"
+        for c in control_taken:
+            out += f"✔️ {c} \n"
+        out += "### Controls not taken \n"
+        for c in control_offered_but_not_taken:
+            out += f"🔲 {c} \n"
+
+        put_markdown(out)
 
     def reset_image(self):
         self.put_image(self.HOME_URL)

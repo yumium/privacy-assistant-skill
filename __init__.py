@@ -13,8 +13,8 @@ CLIENT_NAME = databaseBursts.CLIENT_NAME
 GUI = gui.SimpleGUI()
 MASTER_CURRICULUM = [  # Order of curriculum for all data source. Actual user curriculum will be a subsequence of this.
     'the internet',
-    'account data',
     'usage data',
+    'account data',
     'body data',
     'financial data',  # hypothetical data source
     'third-party service',
@@ -56,7 +56,6 @@ class PrivacyAssistant(MycroftSkill):
             self.add_event(evt, self.handle_event_constructor(evt))
 
         self.add_devices()
-        self.show_curriculum()
 
     # Displays dashboard
     def show_home(self):
@@ -72,7 +71,12 @@ class PrivacyAssistant(MycroftSkill):
 
     # Displays current control in device
     def show_device(self, device):
-        pass
+        controls = DB_MANAGER.execute(f'''
+            SELECT purpose, taken
+            FROM {CLIENT_NAME}.device_data_collection_controls C, devices D
+            WHERE D.name = '{device}' AND D.id = C.device_id
+        ''',None)
+        GUI.put_device(device, [c[0] for c in controls if c[1]], [c[0] for c in controls if not c[1]])
 
     # !!! Slight issue with this. We just lack a good framework for handling flows ...
     def handle_module(self, module):
@@ -90,7 +94,10 @@ class PrivacyAssistant(MycroftSkill):
         # Log completion of module
         DB_MANAGER.execute(f"UPDATE {CLIENT_NAME}.progress SET status = TRUE WHERE title = '{module}'", None)
 
+    @intent_handler(IntentBuilder('Start Demo').require('start').require('demo'))
     def handle_assistant_privacy(self, message):
+        self.speak_dialog('startup.intro',wait=True)
+
         GUI.put_disclosure()
         self.speak_dialog('disclosure1',wait=True)
         sleep(1)
@@ -125,10 +132,10 @@ class PrivacyAssistant(MycroftSkill):
                 self.speak_dialog('acknowledge')
                 self.speak_dialog('onscreen.instructions')
                 self._put_md('open-data-project.md')
-                self.set_context('OpenDataContext')
+                self.set_context('DemoPartOneDone')
             elif agree == 'no':
                 self.speak_dialog('acknowledge')
-                self.handle_internet_intro(None)
+                self.set_context('DemoPartOneDone')
 
     # A fictitious process that simulate the client adding devices
     def add_devices(self):
@@ -143,9 +150,9 @@ class PrivacyAssistant(MycroftSkill):
         '''
         return [x for x in big if x in small]
 
-    @intent_handler(IntentBuilder('Internet Intro').require('done').require('OpenDataContext'))
+    @intent_handler(IntentBuilder('Internet Intro').require('continue').require('demo').require('DemoPartOneDone'))
     def handle_internet_intro(self, message):
-        self.remove_context('OpenDataContext')
+        self.remove_context('DemoPartOneDone')
 
         GUI.put_module(1, 'The Internet')
         self.speak_dialog('internet.intro.0',wait=True)
@@ -183,7 +190,8 @@ class PrivacyAssistant(MycroftSkill):
             response = self._ask_device_selection_safe(entities, 'query.internet.device')
             if response == 'skip':
                 skipped = True
-                self.speak_dialog('Skipped')
+                self.set_context('DemoPartTwoDone')
+                self.speak("Got it, moving on to the next section.")
             else:
                 if (response,) in DB_MANAGER.execute("SELECT name FROM entities WHERE device_id IS NULL", None):  # The entity does not belong to any device
                     info = DB_MANAGER.execute(f"SELECT info FROM entities WHERE name = '{response}'", None)[0][0]
@@ -201,12 +209,17 @@ class PrivacyAssistant(MycroftSkill):
                         device, protocol, purpose, example = p
                         GUI.put_graph(graph.generate_graph(device, protocol))
                         self.speak(f"The {device} {self._decorate_protocol(protocol)} to {purpose}." + (f" For example, {example}" if example else ""),wait=True) 
-                        sleep(5)
+                        sleep(3)
+
+    @intent_handler(IntentBuilder('Start Data Source Tutoring').require('continue').require('demo').require('DemoPartTwoDone'))
+    def demo_start_part_3(self, message):
+        self.remove_context('DemoPartTwoDone')
+        self.handle_data_tutoring_data_source_intro('usage data')
 
     def handle_data_tutoring_data_source_intro(self, data_source):
         assert data_source in self.curriculum
 
-        self.speak(f"Welcome back! Today we will talk about {data_source}.")
+        self.speak(f"Let's learn in more detail about how data is collected and used in your smart home devices. First, let's talk about {data_source}.")
         GUI.put_module(self.curriculum.index(data_source) + 1, string.capwords(data_source))
 
         understand = self._ask_yesno_safe('query.familiar')
@@ -272,6 +285,7 @@ class PrivacyAssistant(MycroftSkill):
             assert b > 0
         except:
             self.log.error(f"a = {a}, b = {b}, purpose = {purpose}")
+            return 0
         return a / b
 
     def handle_next_urgent_control(self, data_source):
@@ -316,11 +330,12 @@ class PrivacyAssistant(MycroftSkill):
                 self.speak_dialog('done',wait=True)
             else:
                 self._put_md(osjoin('urgent-control', str(urgent_id) + '.md'))
-                self.speak_dialog('onscreen.instructions',wait=True)
-                self.set_context('NextUrgentControlContext','')
+                self.speak_dialog('onscreen.instructions')
+                self._set_locvar('data_source', data_source)
+                self.set_context('NextUrgentControlContext')
                 return
         else:
-            self.speak('acknowledge',wait=True)
+            self.speak_dialog('acknowledge',wait=True)
         sleep(2)
         self.handle_next_urgent_control(data_source)
 
@@ -341,7 +356,7 @@ class PrivacyAssistant(MycroftSkill):
             DB_MANAGER.execute(f"UPDATE {CLIENT_NAME}.purposes SET introduced = TRUE WHERE name = '{purpose}'", None)  # Set purpose to be introduced
             familiar = self._ask_yesno_safe('query.purpose.familiar', {'purpose': purpose})
             if familiar is None:
-                self.speak('error')
+                self.speak_dialog('error')
                 return
             elif familiar == 'no':
                 self.speak(DB_MANAGER.execute(f"SELECT information FROM purposes WHERE name = '{purpose}'",None)[0][0])
@@ -390,13 +405,6 @@ class PrivacyAssistant(MycroftSkill):
                     self.speak_dialog('error')
                     return
                 elif disable == 'yes':
-                    DB_MANAGER.execute(  # Set `taken` for this action to be TRUE
-                        f'''
-                            UPDATE {CLIENT_NAME}.device_data_collection_controls SET taken = TRUE WHERE purpose = '{purpose}' AND device_id IN 
-                                (SELECT D.id FROM devices D WHERE D.name = '{d}')
-                        '''
-                    ,None)
-
                     control = DB_MANAGER.execute(  # Whether control is available
                         f'''
                             SELECT C.control, C.device_id
@@ -406,6 +414,13 @@ class PrivacyAssistant(MycroftSkill):
                     ,None)
 
                     if len(control) > 0:
+                        DB_MANAGER.execute(  # Set `taken` for this action to be TRUE
+                            f'''
+                                UPDATE {CLIENT_NAME}.device_data_collection_controls SET taken = TRUE WHERE purpose = '{purpose}' AND device_id IN 
+                                    (SELECT D.id FROM devices D WHERE D.name = '{d}')
+                            '''
+                        ,None)
+
                         self.speak_dialog('manual.control', {'control_info': control[0][0]})
                         self._put_md(osjoin('controls', control[0][1] + '-' + purpose.replace(' ','-') + '.md'))
                         self._set_locvar('DataSourceContext', data_source)
@@ -437,9 +452,28 @@ class PrivacyAssistant(MycroftSkill):
         else:
             self._remove_locvars('Purposes', 'PurposeList')
             GUI.congradulate(self.curriculum.index(data_source) + 1, string.capwords(data_source))
-            self.speak("Great work! That is it for today, come back tomorrow to learn about the next data source. You can also say “continue” to start tomorrow's material right now")
+            self.speak("Great work! That is it for today, come back tomorrow to learn about the next data source.",wait=True)
+            sleep(2)
+            
+            # Show dashboard
+            self.show_dashboard()
 
+            self.set_context('DemoPartThreeDone')
 
+    def show_dashboard(self):
+        self.show_home()
+        self.speak("Congradulations, you have now unlocked the home screen")
+        self.speak("Here you can find your progress on your personalised curriculum, and the devices you own",wait=True); sleep(1)
+
+        self.show_curriculum()
+        self.speak("Here you can find more information about your personalised curriculum",wait=True); sleep(2)
+
+        self.speak("Lastly, you can view the current controls you have taken for each device")
+        for d in ['Withings Body Cardio', 'Philips Hue Bulb', 'WeMo Switch and Motion']:
+            self.show_device(d)
+            sleep(4)
+
+        self.show_home()
 
     @intent_handler(IntentBuilder('Continue settings').require('done').require('SettingsContext'))
     def handle_settings_done(self, message):
@@ -452,43 +486,141 @@ class PrivacyAssistant(MycroftSkill):
         self._remove_locvars('DataSourceContext','PurposeContext','RelevantDevicesContext')
         self.handle_data_purpose2(data_source, purpose, relevant_devices[1:])
 
-    def handle_storage_and_data(self):
-        self.speak_dialog('storage.and.data.intro')
+    # @intent_handler(IntentBuilder('Start data storage and inference').require('continue').require('demo').require('DemoPartThreeDone'))
+    # @intent_handler(IntentBuilder('Start data storage and inference').require('continue').require('demo'))
+    # def handle_storage_and_data(self, message):
+    #     self.remove_context('DemoPartThreeDone')
 
-        self.speak_dialog('statement.1.statement')
-        ans = self._ask_yesno_safe('query.correct')
-        if ans is None:
-            self.speak_dialog('error')
-            return
-        self.speak_dialog('correct' if ans == 'no' else 'incorrect')
-        self.speak_dialog('statement.1.answer')
+    #     GUI.put_module(8, 'data storage and inference')
+    #     self.speak_dialog('storage.and.data.intro')
 
-        self.speak_dialog('statement.2.statement')
-        ans = self._ask_yesno_safe('query.correct')
-        if ans is None:
-            self.speak_dialog('error')
-            return
-        self.speak_dialog('correct' if ans == 'no' else 'incorrect')
-        self.speak_dialog('statement.2.answer')
+    #     self.speak_dialog('statement.1.statement')
+    #     ans = self._ask_yesno_safe('query.correct')
+    #     if ans is None:
+    #         self.speak_dialog('error')
+    #         return
+    #     self.speak_dialog('correct' if ans == 'no' else 'incorrect')
+    #     self.speak_dialog('statement.1.answer')
 
-        self.speak_dialog('statement.3.statement')
-        ans = self._ask_yesno_safe('query.correct')
-        if ans is None:
-            self.speak_dialog('error')
-            return
-        self.speak_dialog('correct' if ans == 'no' else 'incorrect')
-        self.speak_dialog('statement.3.answer')
+    #     self.speak_dialog('statement.2.statement')
+    #     ans = self._ask_yesno_safe('query.correct')
+    #     if ans is None:
+    #         self.speak_dialog('error')
+    #         return
+    #     self.speak_dialog('correct' if ans == 'no' else 'incorrect')
+    #     self.speak_dialog('statement.2.answer')
 
-        self.speak('''
-            Let's look at your devices in more detail. 
-            For storage, your Philips Hue Bulbs and WeMo Switch keep your data as long as it needs to provide functionality, then they are deleted or anonymised.
-            Your Nokia Smart Scale keeps your data permanently.
-        ''',wait=True)
+    #     self.speak_dialog('statement.3.statement')
+    #     ans = self._ask_yesno_safe('query.correct')
+    #     if ans is None:
+    #         self.speak_dialog('error')
+    #         return
+    #     self.speak_dialog('correct' if ans == 'no' else 'incorrect')
+    #     self.speak_dialog('statement.3.answer')
+
+    #     self.speak('''
+    #         Let's look at your devices in more detail. 
+    #         For storage, your Philips Hue Bulbs and WeMo Switch keep your data as long as it needs to provide functionality, then they are deleted or anonymised.
+    #         Your Nokia Smart Scale keeps your data permanently.
+    #     ''',wait=True)
+    #     sleep(1)
+    #     self.speak('''
+    #         On data inference, your WeMo Switch stated that your data will be inferred and used for advertising.
+    #         There is no information on this for your Philips Hue Bulbs and Nokia Body Scale.
+    #     ''')
+
+    #     self.set_context('DemoPartFourDone')
+
+    @intent_handler(IntentBuilder('Start data storage and inference').require('turn').require('on').require('light').require('DemoPartThreeDone'))
+    def start_context_trigger(self, message):
+        self.remove_context('DemoPartThreeDone')
+        self.speak('Turning lights on',wait=True)
         sleep(1)
-        self.speak('''
-            On data inference, your WeMo Switch stated that your data will be inferred and used for advertising.
-            There is no information on this for your Philips Hue Bulbs and Nokia Body Scale.
-        ''')
+
+        # Privacy information on lights ...
+        self.speak('Did you know that your Philips Hue Bulb record your device log, which includes when you turn on the bulb?')
+        self.speak('Philips then uses this data for personalisation and marketing',wait=True)
+        purposes = ['personalisation', 'marketing']
+        for p in purposes:
+            taken = DB_MANAGER.execute(f"SELECT taken FROM {CLIENT_NAME}.device_data_collection_controls WHERE device_id = 'PHI-HUEBUL-296608048' AND purpose = '{p}'", None)[0][0]
+            GUI.put_ddp('Philips Hue Bulbs', 'usage data', p)
+            if taken:
+                self.speak(f'Currently, you have disabled data collection for {p}.')
+            else:
+                self.speak(f'Currently, data collection for {p} is enabled.')
+
+            remember = self._ask_yesno_safe('query.purpose.remember', {'purpose': p})
+            if remember is None:
+                self.speak_dialog('error')
+                return
+            elif remember == 'no':
+                self.speak(DB_MANAGER.execute(f"SELECT information FROM purposes WHERE name = '{p}'",None)[0][0])
+            else:
+                self.speak_dialog('acknowledge')
+
+            if taken:
+                self.speak(f'You have disabled data collection for {p}.')
+                reenable = self._ask_yesno_safe('Would you like to reenable it?')
+                if reenable is None:
+                    self.speak_dialog('error')
+                    return
+                elif reenable == 'yes':
+                    control = DB_MANAGER.execute(  # Whether control is available
+                        f'''
+                            SELECT C.control, C.device_id
+                            FROM device_data_collection_controls C, devices D
+                            WHERE C.device_id = D.id AND D.name = 'Philips Hue Bulb' AND C.purpose = '{p}'
+                        ''' # piggybacks device id as it will be useful. As (device_id, purpose) forms a key, the query has at most 1 rows
+                    ,None)
+
+                    assert len(control) > 0  # Control must be available, as otherwise it cannot be disabled in the first place
+                    self._put_md(osjoin('controls', control[0][1] + '-' + p.replace(' ','-') + '.md'))
+                    self.speak_dialog('manual.control', {'control_info': control[0][0]},wait=True)
+                    sleep(5)
+                    # No need to let user do this in the demo
+                else:
+                    self.speak_dialog('acknowledge',wait=True)
+                    sleep(1)
+            else:
+                concerned = self._ask_yesno_safe('query.concern',{'device': 'Philips Hue Bulbs', 'data_source': 'usage data', 'purpose': p})
+                if concerned is None:
+                    self.speak_dialog('error')
+                    return
+                elif concerned == 'yes':
+                    self.speak_dialog('acknowledge')
+
+                    disable = self._ask_yesno_safe('query.disable.no.consequence')
+                    if disable is None:
+                        self.speak_dialog('error')
+                        return
+                    elif disable == 'yes':
+                        control = DB_MANAGER.execute(  # Whether control is available
+                            f'''
+                                SELECT C.control, C.device_id
+                                FROM device_data_collection_controls C, devices D
+                                WHERE C.device_id = D.id AND D.name = 'Philips Hue Bulb' AND C.purpose = '{p}'
+                            ''' # piggybacks device id as it will be useful. As (device_id, purpose) forms a key, the query has at most 1 rows
+                        ,None)
+
+                        if len(control) > 0:
+                            self._put_md(osjoin('controls', control[0][1] + '-' + p.replace(' ','-') + '.md'))
+                            self.speak_dialog('manual.control', {'control_info': control[0][0]},wait=True)
+                            sleep(5)
+                        else:
+                            self.speak_dialog('no.control')
+                            contact = self._ask_yesno_safe('query.contact.firm')
+                            if contact is None:
+                                self.speak_dialog('error')
+                                return
+                            elif contact == 'yes':
+                                self.speak_dialog('done')
+                                self.speak_dialog('congradulate')
+                            else:
+                                self.speak_dialog('acknowledge')
+                    else:
+                        self.speak_dialog('acknowledge')
+                else:
+                    self.speak_dialog('acknowledge')
 
 
     def handle_event_constructor(self, event):
@@ -503,9 +635,10 @@ class PrivacyAssistant(MycroftSkill):
 
     @intent_handler(IntentBuilder('Start Demo').require('unique'))
     def _test(self, message):
-        data_source = 'body data'
-        self.handle_module('body data')
+        #data_source = 'body data'
+        #self.handle_module('body data')
         # self.speak_dialog('acknowledge')
+        self.speak("Starting demo")
 
     def _put_md(self, fname):
         '''
