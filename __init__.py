@@ -96,6 +96,7 @@ class PrivacyAssistant(MycroftSkill):
 
     @intent_handler(IntentBuilder('Start Demo').require('start').require('demo'))
     def handle_assistant_privacy(self, message):
+        self.speak('Starting demo',wait=True); sleep(1)
         self.speak_dialog('startup.intro',wait=True)
 
         GUI.put_disclosure()
@@ -150,7 +151,7 @@ class PrivacyAssistant(MycroftSkill):
         '''
         return [x for x in big if x in small]
 
-    @intent_handler(IntentBuilder('Internet Intro').require('continue').require('demo').require('DemoPartOneDone'))
+    @intent_handler(IntentBuilder('Internet Intro').require('start').require('part').require('two'))
     def handle_internet_intro(self, message):
         self.remove_context('DemoPartOneDone')
 
@@ -211,7 +212,7 @@ class PrivacyAssistant(MycroftSkill):
                         self.speak(f"The {device} {self._decorate_protocol(protocol)} to {purpose}." + (f" For example, {example}" if example else ""),wait=True) 
                         sleep(3)
 
-    @intent_handler(IntentBuilder('Start Data Source Tutoring').require('continue').require('demo').require('DemoPartTwoDone'))
+    @intent_handler(IntentBuilder('Start Data Source Tutoring').require('start').require('part').require('three'))
     def demo_start_part_3(self, message):
         self.remove_context('DemoPartTwoDone')
         self.handle_data_tutoring_data_source_intro('usage data')
@@ -461,7 +462,8 @@ class PrivacyAssistant(MycroftSkill):
             self.set_context('DemoPartThreeDone')
 
     def show_dashboard(self):
-        self.show_home()
+        #self.show_home()
+        GUI.put_home(0.29)
         self.speak("Congradulations, you have now unlocked the home screen")
         self.speak("Here you can find your progress on your personalised curriculum, and the devices you own",wait=True); sleep(1)
 
@@ -473,7 +475,9 @@ class PrivacyAssistant(MycroftSkill):
             self.show_device(d)
             sleep(4)
 
-        self.show_home()
+        #self.show_home()
+        GUI.put_home(0.29)
+
 
     @intent_handler(IntentBuilder('Continue settings').require('done').require('SettingsContext'))
     def handle_settings_done(self, message):
@@ -531,7 +535,7 @@ class PrivacyAssistant(MycroftSkill):
 
     #     self.set_context('DemoPartFourDone')
 
-    @intent_handler(IntentBuilder('Start data storage and inference').require('turn').require('on').require('light').require('DemoPartThreeDone'))
+    @intent_handler(IntentBuilder('Start data storage and inference').require('turn').require('on').require('light'))
     def start_context_trigger(self, message):
         self.remove_context('DemoPartThreeDone')
         self.speak('Turning lights on',wait=True)
@@ -633,7 +637,7 @@ class PrivacyAssistant(MycroftSkill):
             self.log.error(e.args)
             self.log.error('An error occured!')
 
-    @intent_handler(IntentBuilder('Start Demo').require('unique'))
+    # @intent_handler(IntentBuilder('Start Demo').require('unique'))
     def _test(self, message):
         #data_source = 'body data'
         #self.handle_module('body data')
