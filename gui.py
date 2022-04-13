@@ -26,7 +26,7 @@ class SimpleGUI:
         clear()
         self._init_layout()
         self._set_state('stand_by')
-        put_text(f"Saturday                                                                                                                                                                ☀️ 10°C", scope='header')
+        put_text(f"Sunday                                                                                                                                                                    ☀️ 10°C", scope='header')
         self.put_start_screen()
         put_text("Try say 'Hey Mocha, tell me about my privacy'", scope='footer')
 
@@ -107,8 +107,8 @@ class SimpleGUI:
                     background-repeat: no-repeat;
                     background-position: center;
                 ">
-                    <p style="color: white; font-weight: bold; font-size: 80px">19/03</p>
-                    <p style="color: white; font-weight: bold; font-size: 50px">Hello, Lance!</p>
+                    <p style="color: white; font-weight: bold; font-size: 80px">20/03</p>
+                    <p style="color: white; font-weight: bold; font-size: 50px">Hello!</p>
                 </div>
             '''
         )
