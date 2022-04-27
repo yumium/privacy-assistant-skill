@@ -10,7 +10,8 @@ import string
 
 DB_MANAGER = databaseBursts.dbManager()
 CLIENT_NAME = databaseBursts.CLIENT_NAME
-GUI = gui.SimpleGUI()
+# GUI = gui.SimpleGUI()
+GUI = None
 MASTER_CURRICULUM = [  # Order of curriculum for all data source. Actual user curriculum will be a subsequence of this.
     'the internet',
     'usage data',
@@ -96,10 +97,9 @@ class PrivacyAssistant(MycroftSkill):
 
     @intent_handler(IntentBuilder('Start Demo').require('start').require('demo'))
     def handle_assistant_privacy(self, message):
-        self.speak('Starting demo',wait=True); sleep(1)
+        # self.speak('Starting demo',wait=True); sleep(1)
         self.speak_dialog('startup.intro',wait=True)
-
-        GUI.put_disclosure()
+        # GUI.put_disclosure()
         self.speak_dialog('disclosure1',wait=True)
         sleep(1)
         self.speak_dialog('disclosure2',wait=True)
@@ -115,13 +115,13 @@ class PrivacyAssistant(MycroftSkill):
         elif agree == 'no':
             self.speak_dialog('decline.policy')
         elif agree == 'yes':
-            GUI.put_open_data()
+            # GUI.put_open_data()
             self.speak_dialog('opendata1',wait=True)
             sleep(1)
             self.speak_dialog('opendata2',wait=True)
             sleep(1)
-            self.speak_dialog('opendata3',wait=True)
 
+            self.speak_dialog('opendata3',wait=True)
             OPT_IN = True
             query_dialog = 'opt.out.from.in' if OPT_IN else 'opt.in.from.out'
             agree = self._ask_yesno_safe(query_dialog)
@@ -490,52 +490,50 @@ class PrivacyAssistant(MycroftSkill):
         self._remove_locvars('DataSourceContext','PurposeContext','RelevantDevicesContext')
         self.handle_data_purpose2(data_source, purpose, relevant_devices[1:])
 
-    # @intent_handler(IntentBuilder('Start data storage and inference').require('continue').require('demo').require('DemoPartThreeDone'))
-    # @intent_handler(IntentBuilder('Start data storage and inference').require('continue').require('demo'))
-    # def handle_storage_and_data(self, message):
-    #     self.remove_context('DemoPartThreeDone')
+    def handle_storage_and_data(self, message):
+        self.remove_context('DemoPartThreeDone')
 
-    #     GUI.put_module(8, 'data storage and inference')
-    #     self.speak_dialog('storage.and.data.intro')
+        GUI.put_module(8, 'data storage and inference')
+        self.speak_dialog('storage.and.data.intro')
 
-    #     self.speak_dialog('statement.1.statement')
-    #     ans = self._ask_yesno_safe('query.correct')
-    #     if ans is None:
-    #         self.speak_dialog('error')
-    #         return
-    #     self.speak_dialog('correct' if ans == 'no' else 'incorrect')
-    #     self.speak_dialog('statement.1.answer')
+        self.speak_dialog('statement.1.statement')
+        ans = self._ask_yesno_safe('query.correct')
+        if ans is None:
+            self.speak_dialog('error')
+            return
+        self.speak_dialog('correct' if ans == 'no' else 'incorrect')
+        self.speak_dialog('statement.1.answer')
 
-    #     self.speak_dialog('statement.2.statement')
-    #     ans = self._ask_yesno_safe('query.correct')
-    #     if ans is None:
-    #         self.speak_dialog('error')
-    #         return
-    #     self.speak_dialog('correct' if ans == 'no' else 'incorrect')
-    #     self.speak_dialog('statement.2.answer')
+        self.speak_dialog('statement.2.statement')
+        ans = self._ask_yesno_safe('query.correct')
+        if ans is None:
+            self.speak_dialog('error')
+            return
+        self.speak_dialog('correct' if ans == 'no' else 'incorrect')
+        self.speak_dialog('statement.2.answer')
 
-    #     self.speak_dialog('statement.3.statement')
-    #     ans = self._ask_yesno_safe('query.correct')
-    #     if ans is None:
-    #         self.speak_dialog('error')
-    #         return
-    #     self.speak_dialog('correct' if ans == 'no' else 'incorrect')
-    #     self.speak_dialog('statement.3.answer')
+        self.speak_dialog('statement.3.statement')
+        ans = self._ask_yesno_safe('query.correct')
+        if ans is None:
+            self.speak_dialog('error')
+            return
+        self.speak_dialog('correct' if ans == 'no' else 'incorrect')
+        self.speak_dialog('statement.3.answer')
 
-    #     self.speak('''
-    #         Let's look at your devices in more detail. 
-    #         For storage, your Philips Hue Bulbs and WeMo Switch keep your data as long as it needs to provide functionality, then they are deleted or anonymised.
-    #         Your Nokia Smart Scale keeps your data permanently.
-    #     ''',wait=True)
-    #     sleep(1)
-    #     self.speak('''
-    #         On data inference, your WeMo Switch stated that your data will be inferred and used for advertising.
-    #         There is no information on this for your Philips Hue Bulbs and Nokia Body Scale.
-    #     ''')
+        self.speak('''
+            Let's look at your devices in more detail. 
+            For storage, your Philips Hue Bulbs and WeMo Switch keep your data as long as it needs to provide functionality, then they are deleted or anonymised.
+            Your Nokia Smart Scale keeps your data permanently.
+        ''',wait=True)
+        sleep(1)
+        self.speak('''
+            On data inference, your WeMo Switch stated that your data will be inferred and used for advertising.
+            There is no information on this for your Philips Hue Bulbs and Nokia Body Scale.
+        ''')
 
-    #     self.set_context('DemoPartFourDone')
+        self.set_context('DemoPartFourDone')
 
-    @intent_handler(IntentBuilder('Start data storage and inference').require('turn').require('on').require('light'))
+    @intent_handler(IntentBuilder('Start contextual trigger').require('turn').require('on').require('light'))
     def start_context_trigger(self, message):
         self.remove_context('DemoPartThreeDone')
         self.speak('Turning lights on',wait=True)
@@ -636,13 +634,6 @@ class PrivacyAssistant(MycroftSkill):
         except Exception as e:
             self.log.error(e.args)
             self.log.error('An error occured!')
-
-    # @intent_handler(IntentBuilder('Start Demo').require('unique'))
-    def _test(self, message):
-        #data_source = 'body data'
-        #self.handle_module('body data')
-        # self.speak_dialog('acknowledge')
-        self.speak("Starting demo")
 
     def _put_md(self, fname):
         '''
@@ -755,8 +746,5 @@ class PrivacyAssistant(MycroftSkill):
         
         return response if response == 'yes' or response == 'no' else None
 
-
-
 def create_skill():
     return PrivacyAssistant()
-

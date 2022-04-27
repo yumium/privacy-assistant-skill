@@ -1,10 +1,9 @@
-from . import (graph)
+#from . import (graph)
+import graph
 from pywebio.output import *
-import datetime as dt
 
 class SimpleGUI:
-    HOME_URL = 'https://storage.googleapis.com/mocha-instructions/screen.png'
-
+    # What state the voice assistant can be in
     STATES = ['stand_by','recording','thinking','speaking']
 
     # What color each term takes. Colors are keywords in CSS color value
@@ -40,6 +39,7 @@ class SimpleGUI:
     def put_md(self, md):
         put_markdown(md)
 
+    # Display data source and collection purpose
     @use_scope('main', clear=True)
     def put_dp(self, data_source, purpose):
         put_html(
@@ -57,6 +57,7 @@ class SimpleGUI:
             '''
         )
 
+    # Display device, data source, and collection purpose
     @use_scope('main', clear=True)
     def put_ddp(self, device, data_source, purpose):
         put_html(
@@ -75,6 +76,7 @@ class SimpleGUI:
             '''
         )
 
+    # Display congradulating message after finishing a module
     @use_scope('main', clear=True)
     def congradulate(self, module_num, module):
         put_html(
@@ -158,6 +160,7 @@ class SimpleGUI:
             '''
         )
 
+    # Screen for urgent privacy information
     @use_scope('main', clear=True)
     def put_urgent(self, description):
         put_html(
@@ -183,6 +186,7 @@ class SimpleGUI:
             '''
         )
 
+    # Screen for introducing a new module
     @use_scope('main', clear=True)
     def put_module(self,module_number,module_name):
         put_html(
@@ -199,6 +203,7 @@ class SimpleGUI:
             '''
         )
 
+    # Advance state
     def advance(self, event):
         if event == 'recognizer_loop:wakeword':
             return
@@ -225,11 +230,13 @@ class SimpleGUI:
     def put_image(self, url):
         put_image(url)
 
+    # Displays home screen
     @use_scope(name='main', clear=True)
     def put_home(self, perc):
         g = graph.generate_home(perc)
         put_html(g.render_notebook())
 
+    # Displays the curriculum and user's progress
     @use_scope(name='main', clear=True)
     def put_curriculum(self, curriculum):
         '''
@@ -263,20 +270,17 @@ class SimpleGUI:
 
         put_markdown(out)
 
-    def reset_image(self):
-        self.put_image(self.HOME_URL)
-
     def _set_state(self, new_state):
         assert new_state in self.STATES
         self.current_state = new_state
         self._update_text(new_state)
 
+    # Text used to display state information
     @use_scope(name='status_bar', clear=True)
     def _update_text(self, txt):
         if txt == 'stand_by':
             txt = '―――'
         elif txt == 'speaking':
-            #txt = '( \' o \' )'
             txt = '(( - ))'
         elif txt == 'recording':
             txt = '?'
@@ -296,4 +300,3 @@ class SimpleGUI:
             '''
         )
 
-        #background-image: linear-gradient(180deg, #fff, #ddd 40%, #ccc)

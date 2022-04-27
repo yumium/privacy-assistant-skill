@@ -1,7 +1,8 @@
 from pyecharts import options as opts
 from pyecharts.charts import Graph, Liquid, Grid, Pie, Timeline
 from pyecharts.commons.utils import JsCode
-from .db import (databaseBursts)
+#from .db import (databaseBursts)
+from db import databaseBursts
 import string
 
 DB_MANAGER = databaseBursts.dbManager()
