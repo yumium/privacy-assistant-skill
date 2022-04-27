@@ -4,15 +4,17 @@ Turn your Mycroft into a privacy assistant for your smart home!
 ## About
 A privacy assistant that guides you through the privacy risks in your specific smart home configuration, and offers suggestions on what you can do to better protect your privacy.
 
-## Examples Queries
-* "Hey mocha, start demo"
-* "Hey mocha, add device"
-* "Hey mocha, tell me about my privacy"
+Example dialog:
 
-## Example Responses
-* "Your Philips Hue Bulbs and WeMo Switch both collection data for marketing, are you concerned with that?"
-* "Okay, would you like me to stop your Philips Hue Bulbs from collecting data for that purpose?"
-* "I noticed some unusual data from your Nokia Smart Scale, would you like me to contact them about it?"
+*Mocha: Your Philips Hue Bulbs collect usage data for product feedback and improvement, does that worry you?*
+
+*User: Yes, quite a bit.*
+
+*Mocha: Okay, would you like me to disable that?*
+
+*User: Yes, please.*
+
+*Mocha: Sure. Please follow the onscreen instructions to disable this. Let me know when you are done.*
 
 ## Credits
 yumium
@@ -22,21 +24,5 @@ yumium
 
 ## Tags
 #Privacy
-#Iot
+#IoT
 #Smart home
-
-To do
-- Config
-- Hosting images
-
-
-- Exmaples functions
-
-- Scenario testing
-- E.g. contextual trigger
-
-## Future work!
-- Multi-user privacy management
-- Privacy controls
-- Data infrastructure
-- Consent management
