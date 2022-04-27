@@ -144,15 +144,18 @@ DROP SCHEMA IF EXISTS client CASCADE;
 CREATE SCHEMA client;
 SET search_path TO public, client;
 
+-- Devices the client owns
 CREATE TABLE client.devices (
 	id VARCHAR(20) PRIMARY KEY REFERENCES devices(id) ON DELETE CASCADE
 );
 
+-- Collection purposes of data collected by client's devices
 CREATE TABLE client.purposes (
 	name VARCHAR(50) PRIMARY KEY REFERENCES purposes(name) ON DELETE CASCADE,
 	introduced BOOLEAN NOT NULL DEFAULT FALSE -- If the purpose has been introduced to the user before
 );
 
+-- Controls available for each collection purpose of each device, null if no control available for that collection purpose
 CREATE TABLE client.device_data_collection_controls (
 	device_id VARCHAR(20) NOT NULL REFERENCES client.devices(id) ON DELETE CASCADE,
 	purpose VARCHAR(50) NOT NULL REFERENCES purposes(name) ON DELETE CASCADE,
@@ -162,6 +165,7 @@ CREATE TABLE client.device_data_collection_controls (
 	PRIMARY KEY (device_id, purpose)
 );
 
+-- Urgent controls for the client's devices
 CREATE TABLE client.device_data_collection_urgent_controls (
 	id SMALLINT REFERENCES device_data_collection_urgent_controls(id) ON DELETE CASCADE,
 	taken BOOLEAN NOT NULL DEFAULT FALSE, 	-- If action is taken for this urgent control
@@ -169,6 +173,7 @@ CREATE TABLE client.device_data_collection_urgent_controls (
 	PRIMARY KEY (id)
 );
 
+-- Client's progress on their curriculum
 CREATE TABLE client.progress (
 	title VARCHAR(50) NOT NULL,  -- Title of the module
 	status BOOLEAN NOT NULL DEFAULT FALSE  -- Whether the user has completed it or not

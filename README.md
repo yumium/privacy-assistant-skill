@@ -25,3 +25,18 @@ yumium
 #Iot
 #Smart home
 
+To do
+- Config
+- Hosting images
+
+
+- Exmaples functions
+
+- Scenario testing
+- E.g. contextual trigger
+
+## Future work!
+- Multi-user privacy management
+- Privacy controls
+- Data infrastructure
+- Consent management

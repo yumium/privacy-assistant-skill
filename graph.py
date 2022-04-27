@@ -1,3 +1,4 @@
+from bs4 import FeatureNotFound
 from pyecharts import options as opts
 from pyecharts.charts import Graph, Liquid, Grid, Pie, Timeline
 from pyecharts.commons.utils import JsCode
@@ -6,7 +7,6 @@ import string
 
 DB_MANAGER = databaseBursts.dbManager()
 CLIENT_NAME = databaseBursts.CLIENT_NAME
-
 
 def generate_full_graph():
     '''
@@ -152,6 +152,9 @@ def generate_graph(device, protocol):
     return c
 
 def generate_liquid(perc):
+    '''
+        Generates the liquid ball with `perc` percentage
+    '''
     l = (
         Liquid()
         .add(
@@ -177,6 +180,9 @@ def generate_liquid(perc):
 
 
 def generate_device_orbit():
+    '''
+        Generate a graph of devices orbiting the origin. Currently the devices are hard-coded
+    '''
     nodes = [
         opts.GraphNode(name='Root', x=100, y=80, is_fixed=True, symbol='pin', symbol_size=0, label_opts=opts.LabelOpts(is_show=False)),
         opts.GraphNode(name='Withings Body Cardio', category=0, x=100, y=30),
@@ -210,6 +216,9 @@ def generate_device_orbit():
     return c
 
 def generate_home(perc):
+    '''
+        Generate the home screen, with the `perc` percentage completion liquid ball with owned devices orbiting it
+    '''
     l = generate_liquid(perc)
     c = generate_device_orbit()
 

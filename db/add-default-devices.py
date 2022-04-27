@@ -1,5 +1,8 @@
+# Adds default devices to the client schema
+
 import databaseBursts
 
+# Copy data collection purposes to client's curriculum (depending on the devices they own)
 def copy_purpose(DB_MANAGER, client_name=None):
 	if client_name is None:
 		client_name = databaseBursts.CLIENT_NAME
@@ -12,6 +15,7 @@ def copy_purpose(DB_MANAGER, client_name=None):
 		'''
 	,None)
 
+	# All clients get the below modules in their curriculum
 	DB_MANAGER.execute(f"INSERT INTO {client_name}.progress VALUES ('the internet')", None)
 	DB_MANAGER.execute(f"INSERT INTO {client_name}.progress VALUES ('data storage and inference')", None)
 

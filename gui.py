@@ -3,8 +3,7 @@ from pywebio.output import *
 import datetime as dt
 
 class SimpleGUI:
-    HOME_URL = 'https://storage.googleapis.com/mocha-instructions/screen.png'
-
+    # States the voice assistant can be in
     STATES = ['stand_by','recording','thinking','speaking']
 
     # What color each term takes. Colors are keywords in CSS color value
@@ -24,7 +23,9 @@ class SimpleGUI:
 
     def __init__(self):
         clear()
+        # Setting the layout
         self._init_layout()
+        # Populating layout with content
         self._set_state('stand_by')
         put_text(f"Sunday                                                                                                                                                                    ☀️ 10°C", scope='header')
         self.put_start_screen()
@@ -36,10 +37,12 @@ class SimpleGUI:
         put_scrollable(put_scope('main'), height=400, keep_bottom=True, border=False)
         put_scope('footer')
 
+    # Display markdown, `md` is a string
     @use_scope('main', clear=True)
     def put_md(self, md):
         put_markdown(md)
 
+    # Display `data_source` and `purpose`
     @use_scope('main', clear=True)
     def put_dp(self, data_source, purpose):
         put_html(
@@ -57,6 +60,7 @@ class SimpleGUI:
             '''
         )
 
+    # Display `device`, `data_source`, and `purpose`
     @use_scope('main', clear=True)
     def put_ddp(self, device, data_source, purpose):
         put_html(
@@ -75,6 +79,7 @@ class SimpleGUI:
             '''
         )
 
+    # Display congradulations text for `module` with number `module_num`
     @use_scope('main', clear=True)
     def congradulate(self, module_num, module):
         put_html(
@@ -91,6 +96,7 @@ class SimpleGUI:
                 </div>
             '''
         )
+
 
     @use_scope('main', clear=True)
     def put_start_screen(self):
@@ -158,6 +164,7 @@ class SimpleGUI:
             '''
         )
 
+    # Display information about an urgent control
     @use_scope('main', clear=True)
     def put_urgent(self, description):
         put_html(
@@ -183,6 +190,7 @@ class SimpleGUI:
             '''
         )
 
+    # Display title of a module
     @use_scope('main', clear=True)
     def put_module(self,module_number,module_name):
         put_html(
@@ -199,6 +207,7 @@ class SimpleGUI:
             '''
         )
 
+    # Update device state given an `event`
     def advance(self, event):
         if event == 'recognizer_loop:wakeword':
             return
@@ -221,15 +230,13 @@ class SimpleGUI:
     def put_graph(self, c):
         put_html(c.render_notebook())
 
-    @use_scope(name='main', clear=True)
-    def put_image(self, url):
-        put_image(url)
-
+    # Display home screen
     @use_scope(name='main', clear=True)
     def put_home(self, perc):
         g = graph.generate_home(perc)
         put_html(g.render_notebook())
 
+    # Display progress of curriculum
     @use_scope(name='main', clear=True)
     def put_curriculum(self, curriculum):
         '''
@@ -244,16 +251,6 @@ class SimpleGUI:
         '''
             Displays the controls taken and not taken with the device
         '''
-        # put_markdown(f'''
-        # ## {device_name}
-
-        # ### Controls taken
-        # ✔️ Marketing
-        
-        # ### Controls not taken
-        # 🔲 Personalisation
-        # ''')
-
         out = f"## {device_name} \n ### Controls taken \n"
         for c in control_taken:
             out += f"✔️ {c} \n"
@@ -263,9 +260,6 @@ class SimpleGUI:
 
         put_markdown(out)
 
-    def reset_image(self):
-        self.put_image(self.HOME_URL)
-
     def _set_state(self, new_state):
         assert new_state in self.STATES
         self.current_state = new_state
@@ -273,10 +267,10 @@ class SimpleGUI:
 
     @use_scope(name='status_bar', clear=True)
     def _update_text(self, txt):
+        # ASCII icon for each state
         if txt == 'stand_by':
             txt = '―――'
         elif txt == 'speaking':
-            #txt = '( \' o \' )'
             txt = '(( - ))'
         elif txt == 'recording':
             txt = '?'
@@ -296,4 +290,3 @@ class SimpleGUI:
             '''
         )
 
-        #background-image: linear-gradient(180deg, #fff, #ddd 40%, #ccc)

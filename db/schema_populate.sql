@@ -1,4 +1,4 @@
--- IoT devices of the smart home
+-- Example device templates
 
 INSERT INTO devices (id, name, manufacturer)
 	VALUES (

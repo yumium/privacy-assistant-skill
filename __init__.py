@@ -1,4 +1,3 @@
-from xml.dom.pulldom import parseString
 from mycroft import MycroftSkill, intent_handler
 from adapt.intent import IntentBuilder
 from time import sleep
@@ -9,7 +8,7 @@ from os.path import join as osjoin
 import string
 
 DB_MANAGER = databaseBursts.dbManager()
-CLIENT_NAME = databaseBursts.CLIENT_NAME
+CLIENT_NAME = databaseBursts.CLIENT_NAME  # Schema name of the client schema
 GUI = gui.SimpleGUI()
 MASTER_CURRICULUM = [  # Order of curriculum for all data source. Actual user curriculum will be a subsequence of this.
     'the internet',
@@ -21,7 +20,7 @@ MASTER_CURRICULUM = [  # Order of curriculum for all data source. Actual user cu
     'third-party integration',
     'data storage and inference'
 ]
-CURRICULUM_DIR = 'curriculum'
+CURRICULUM_DIR = 'curriculum'  # Relative path to the curriculum directory
 
 class PrivacyAssistant(MycroftSkill):
     def __init__(self):
@@ -78,21 +77,21 @@ class PrivacyAssistant(MycroftSkill):
         ''',None)
         GUI.put_device(device, [c[0] for c in controls if c[1]], [c[0] for c in controls if not c[1]])
 
-    # !!! Slight issue with this. We just lack a good framework for handling flows ...
-    def handle_module(self, module):
-        assert module in self.curriculum
+    # Display home screen, curriculum progress and device controls in a guided manner
+    def show_dashboard(self):
+        self.show_home()
+        self.speak("Congradulations, you have now unlocked the home screen")
+        self.speak("Here you can find your progress on your personalised curriculum, and the devices you own",wait=True); sleep(1)
 
-        callback = None  # The continuation for the curriculum
-        if module == 'the internet':
-            callback = self.handle_assistant_privacy
-        elif module == 'data storage and inference':
-            callback = self.handle_storage_and_data
-        else:
-            callback = lambda: self.handle_data_tutoring_data_source_intro(module)
-        
-        callback()
-        # Log completion of module
-        DB_MANAGER.execute(f"UPDATE {CLIENT_NAME}.progress SET status = TRUE WHERE title = '{module}'", None)
+        self.show_curriculum()
+        self.speak("Here you can find more information about your personalised curriculum",wait=True); sleep(2)
+
+        self.speak("Lastly, you can view the current controls you have taken for each device")
+        for d in ['Withings Body Cardio', 'Philips Hue Bulb', 'WeMo Switch and Motion']:
+            self.show_device(d)
+            sleep(4)
+
+        self.show_home()
 
     @intent_handler(IntentBuilder('Start Demo').require('start').require('demo'))
     def handle_assistant_privacy(self, message):
@@ -143,14 +142,6 @@ class PrivacyAssistant(MycroftSkill):
         data_sources = [d[0] for d in DB_MANAGER.execute(f'SELECT title FROM {CLIENT_NAME}.progress', None)]
         self.curriculum = self._sort_merge(MASTER_CURRICULUM, data_sources + ['the internet', 'data storage and inference'])
 
-    def _sort_merge(self, big, small):
-        '''
-            Pre: `small` is a subset of `big` AND all elements in `big` and `small` are unique
-            Post: A subsequence of `big` that contains only the elements in `small`
-            (the algorithm is naive, assuming small `big` and `small` sizes)
-        '''
-        return [x for x in big if x in small]
-
     @intent_handler(IntentBuilder('Internet Intro').require('start').require('part').require('two'))
     def handle_internet_intro(self, message):
         self.remove_context('DemoPartOneDone')
@@ -197,7 +188,7 @@ class PrivacyAssistant(MycroftSkill):
                 if (response,) in DB_MANAGER.execute("SELECT name FROM entities WHERE device_id IS NULL", None):  # The entity does not belong to any device
                     info = DB_MANAGER.execute(f"SELECT info FROM entities WHERE name = '{response}'", None)[0][0]
                     self.speak(info)
-                else:
+                else:  # The entity belongs to a device
                     # Pre: each device in the devices table has a protocol entry associated with it
                     protocols = DB_MANAGER.execute(
                         f'''
@@ -212,6 +203,7 @@ class PrivacyAssistant(MycroftSkill):
                         self.speak(f"The {device} {self._decorate_protocol(protocol)} to {purpose}." + (f" For example, {example}" if example else ""),wait=True) 
                         sleep(3)
 
+    # This function shortcuts the data source curriculum to 'usage data' for the demo
     @intent_handler(IntentBuilder('Start Data Source Tutoring').require('start').require('part').require('three'))
     def demo_start_part_3(self, message):
         self.remove_context('DemoPartTwoDone')
@@ -240,18 +232,18 @@ class PrivacyAssistant(MycroftSkill):
                 self.set_context('PurposeIntroContext')
                 self._set_locvar('DataSourceContext',data_source)
             else:
-                self.handle_data_tutoring_purpose_intro2(data_source)
+                self.handle_data_tutoring_purpose_intro(data_source)
         else:
-            self.handle_data_tutoring_purpose_intro2(data_source)
+            self.handle_data_tutoring_purpose_intro(data_source)
     
     @intent_handler(IntentBuilder('Continue purpose intro').require('done').require('PurposeIntroContext'))
-    def handle_data_tutoring_purpose_intro(self, message):
+    def handle_data_tutoring_purpose_intro_extra_info(self, message):
         self.remove_context('PurposeIntroContext')
         data_source = self._get_locvar('DataSourceContext')
         self._remove_locvars('DataSourceContext')
-        self.handle_data_tutoring_purpose_intro2(data_source)
+        self.handle_data_tutoring_purpose_intro(data_source)
 
-    def handle_data_tutoring_purpose_intro2(self, data_source):
+    def handle_data_tutoring_purpose_intro(self, data_source):
         # A dictionary that reverse maps each purpose to a list of devices that collects the `data_source` for that purpose
         purposes = dict(DB_MANAGER.execute(
         f'''
@@ -264,6 +256,7 @@ class PrivacyAssistant(MycroftSkill):
         self._set_locvar('Purposes', purposes)  # The `purposes` dictionary
         self._set_locvar('PurposeList', sorted(list(purposes.keys()), key=self._get_purpose_percentage))  # The remaining list of purposes to go through, sorted from low to high priority so highest priority is popped first
 
+        # Urgent controls within the data source
         urgents = DB_MANAGER.execute(
         f'''
             SELECT C.id, D.name, C.data_source, C.description, C.control
@@ -272,7 +265,7 @@ class PrivacyAssistant(MycroftSkill):
         '''
         ,None)
 
-        self._set_locvar('Urgents',urgents)
+        self._set_locvar('Urgents',urgents)  # The list of urgent controls within the data source
         self.handle_next_urgent_control(data_source)
 
 
@@ -414,7 +407,7 @@ class PrivacyAssistant(MycroftSkill):
                         ''' # piggybacks device id as it will be useful. As (device_id, purpose) forms a key, the query has at most 1 rows
                     ,None)
 
-                    if len(control) > 0:
+                    if len(control) > 0:  # Control available
                         DB_MANAGER.execute(  # Set `taken` for this action to be TRUE
                             f'''
                                 UPDATE {CLIENT_NAME}.device_data_collection_controls SET taken = TRUE WHERE purpose = '{purpose}' AND device_id IN 
@@ -429,7 +422,7 @@ class PrivacyAssistant(MycroftSkill):
                         self._set_locvar('RelevantDevicesContext', relevant_devices[relevant_devices.index(d):])  # remove previous devices
                         self.set_context('SettingsContext')
                         return
-                    else:
+                    else:  # Control unavailable
                         self.speak_dialog('no.control')
                         contact = self._ask_yesno_safe('query.contact.firm')
                         if contact is None:
@@ -447,10 +440,10 @@ class PrivacyAssistant(MycroftSkill):
 
         # The (data_source, purpose) pair is finished
         purpose_list = self._get_locvar('PurposeList')
-        if len(purpose_list) > 0:
+        if len(purpose_list) > 0:  # Continue to next purpose
             p = purpose_list.pop()
             self.handle_data_purpose_intro(data_source, p, self._get_locvar('Purposes')[p])
-        else:
+        else:  # All purposes audited, end module
             self._remove_locvars('Purposes', 'PurposeList')
             GUI.congradulate(self.curriculum.index(data_source) + 1, string.capwords(data_source))
             self.speak("Great work! That is it for today, come back tomorrow to learn about the next data source.",wait=True)
@@ -461,24 +454,7 @@ class PrivacyAssistant(MycroftSkill):
 
             self.set_context('DemoPartThreeDone')
 
-    def show_dashboard(self):
-        #self.show_home()
-        GUI.put_home(0.29)
-        self.speak("Congradulations, you have now unlocked the home screen")
-        self.speak("Here you can find your progress on your personalised curriculum, and the devices you own",wait=True); sleep(1)
-
-        self.show_curriculum()
-        self.speak("Here you can find more information about your personalised curriculum",wait=True); sleep(2)
-
-        self.speak("Lastly, you can view the current controls you have taken for each device")
-        for d in ['Withings Body Cardio', 'Philips Hue Bulb', 'WeMo Switch and Motion']:
-            self.show_device(d)
-            sleep(4)
-
-        #self.show_home()
-        GUI.put_home(0.29)
-
-
+    # Waiting for user to finish changing privacy settins to continue to next notice
     @intent_handler(IntentBuilder('Continue settings').require('done').require('SettingsContext'))
     def handle_settings_done(self, message):
         self.speak_dialog('congradulate')
@@ -490,51 +466,7 @@ class PrivacyAssistant(MycroftSkill):
         self._remove_locvars('DataSourceContext','PurposeContext','RelevantDevicesContext')
         self.handle_data_purpose2(data_source, purpose, relevant_devices[1:])
 
-    # @intent_handler(IntentBuilder('Start data storage and inference').require('continue').require('demo').require('DemoPartThreeDone'))
-    # @intent_handler(IntentBuilder('Start data storage and inference').require('continue').require('demo'))
-    # def handle_storage_and_data(self, message):
-    #     self.remove_context('DemoPartThreeDone')
-
-    #     GUI.put_module(8, 'data storage and inference')
-    #     self.speak_dialog('storage.and.data.intro')
-
-    #     self.speak_dialog('statement.1.statement')
-    #     ans = self._ask_yesno_safe('query.correct')
-    #     if ans is None:
-    #         self.speak_dialog('error')
-    #         return
-    #     self.speak_dialog('correct' if ans == 'no' else 'incorrect')
-    #     self.speak_dialog('statement.1.answer')
-
-    #     self.speak_dialog('statement.2.statement')
-    #     ans = self._ask_yesno_safe('query.correct')
-    #     if ans is None:
-    #         self.speak_dialog('error')
-    #         return
-    #     self.speak_dialog('correct' if ans == 'no' else 'incorrect')
-    #     self.speak_dialog('statement.2.answer')
-
-    #     self.speak_dialog('statement.3.statement')
-    #     ans = self._ask_yesno_safe('query.correct')
-    #     if ans is None:
-    #         self.speak_dialog('error')
-    #         return
-    #     self.speak_dialog('correct' if ans == 'no' else 'incorrect')
-    #     self.speak_dialog('statement.3.answer')
-
-    #     self.speak('''
-    #         Let's look at your devices in more detail. 
-    #         For storage, your Philips Hue Bulbs and WeMo Switch keep your data as long as it needs to provide functionality, then they are deleted or anonymised.
-    #         Your Nokia Smart Scale keeps your data permanently.
-    #     ''',wait=True)
-    #     sleep(1)
-    #     self.speak('''
-    #         On data inference, your WeMo Switch stated that your data will be inferred and used for advertising.
-    #         There is no information on this for your Philips Hue Bulbs and Nokia Body Scale.
-    #     ''')
-
-    #     self.set_context('DemoPartFourDone')
-
+    # Fictitious event to simulate contextual triggers. Here, Mocha informs the user about the privacy risks of usage data after the user tries to turn the lights on
     @intent_handler(IntentBuilder('Start data storage and inference').require('turn').require('on').require('light'))
     def start_context_trigger(self, message):
         self.remove_context('DemoPartThreeDone')
@@ -626,7 +558,7 @@ class PrivacyAssistant(MycroftSkill):
                 else:
                     self.speak_dialog('acknowledge')
 
-
+    ## ---- HELPER FUNCTIONS ---- ##
     def handle_event_constructor(self, event):
         return lambda msg: self.handle_event(msg,event)
 
@@ -636,13 +568,6 @@ class PrivacyAssistant(MycroftSkill):
         except Exception as e:
             self.log.error(e.args)
             self.log.error('An error occured!')
-
-    # @intent_handler(IntentBuilder('Start Demo').require('unique'))
-    def _test(self, message):
-        #data_source = 'body data'
-        #self.handle_module('body data')
-        # self.speak_dialog('acknowledge')
-        self.speak("Starting demo")
 
     def _put_md(self, fname):
         '''
@@ -755,7 +680,13 @@ class PrivacyAssistant(MycroftSkill):
         
         return response if response == 'yes' or response == 'no' else None
 
-
+    def _sort_merge(self, big, small):
+        '''
+            Pre: `small` is a subset of `big` AND all elements in `big` and `small` are unique
+            Post: A subsequence of `big` that contains only the elements in `small`
+            (the algorithm is naive, assuming inputs are small)
+        '''
+        return [x for x in big if x in small]
 
 def create_skill():
     return PrivacyAssistant()
