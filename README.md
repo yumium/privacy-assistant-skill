@@ -1,5 +1,5 @@
 # <img src="https://raw.githack.com/FortAwesome/Font-Awesome/master/svgs/solid/user-lock.svg" card_color="#9A0F90" width="50" height="50" style="vertical-align:bottom"/> Privacy Assistant
-Turn your Mycroft into a privacy assistant for your smart home!
+Turn your Voice Assistant (Mycroft) into a privacy assistant for your smart home!
 
 ## About
 A privacy assistant that guides you through the privacy risks in your specific smart home configuration, and offers suggestions on what you can do to better protect your privacy.
